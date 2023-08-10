@@ -1,0 +1,61 @@
+7/26/23
+Started working on Detecting_Hallmarks_Functions.py
+This script will house functions that are necessary for performing target-site duplication, poly(A) tail, and 3' transduction detection.
+
+
+As of now, the functions are being copied in from:
+/home/blacksmi/links/kidd-lab-scratch/matt-projects/CLAINE_pull/CLAINE/Inter-group-testing/Inter_Group_Testing_PALMER_Only/Processing_All_TSD.py 
+They will be modified to be more generalizable.
+The first funciton copied in was process_file. I added a doc string after copying it in.
+
+7/27/23 (written 7/28/23)
+Added the run_water function to Detecting_Hallmarks.py
+However, it will need to undergo some changes, and will likely be split into multiple functions
+
+7/28/23
+the run_water function was modified. run_water still createss a .txt alignment file which is processed by 
+process_file.
+
+However, I created a new function called investigate_TSD_validity.
+It first checks that the detected "TSD" is within dist (5)bp of start/end of the insertion.
+If that is true, it then checks that the TSD isn't longer (or almost as long) than the flank.
+If it is, then the flank distance is doubled and the process is repeated.
+
+investigate_TSD_validity is called within run_water.
+
+This did reduce the functionality of run_water.
+For instance, it no longer expects that there will be a TSD to compare to (this was the case when looking at PALMER+Assembly output)
+There are other changes as well such as removing the alignment between the TSD and the reference. This step my have been unnecessary, and I believe there are better ways to go about it.
+
+
+7/30/23-7/31/23
+Continued updating Detecting_Hallmarks_Functions.py
+Added and extensively updated the readability of Repeat_Positions and changed it to allow for using the bed converted RM file.
+Additionally, updated the smith-waterman command to now have the upstream and 5' be the top alignment, and the downstream and 3' be the bottom.
+
+Added a section which handles detecting poly_A tails using Hallmarks.Detect_Poly_As
+Added Added transduction_detection function. which is able to identify 3' transductions.  It does so by taking all sequence between the end of the first TD and start of the last TD.
+
+8/1/23
+There was a bug in Detect_Poly_As that would crash the program if the orientation was not Forward or Reverse. This was because
+no faidx command is generated for these loci. To make the crash stop, the portion related to extract faidx sequence was move to the else: located at line 421
+I believe this fixed the error.
+
+8/7/23
+Found a bug in Repeat_Positions of Detecting_Hallmarks_Functions.py
+The RM file was being read from the 2nd line of the file to the end rather than from the start.
+This was fixed. Additionally, when iterating through the RM output, once we are past the insertion (start of RM_line > end_of_detected insertion) the loop is broken.
+This won't have a huge impact on the speed, but might make a modest difference.
+
+Traceback (most recent call last):
+  File "/nfs/turbo/jmkiddscr/matt-projects/inter-genome_comparisons/Aligning_Using_2.26/Detect_Hallmarks.py", line 63, in <module>
+    seq1,seq2,between = Hallmarks.run_water(flank, dist, extract, ref, ref)
+  File "/home/blacksmi/links/kidd-lab/matt-projects/Generic_Python_Scripts_Matt/Detecting_Hallmarks_Functions.py", line 84, in run_water
+    seq1,seq2,between = process_file("water.txt")
+  File "/home/blacksmi/links/kidd-lab/matt-projects/Generic_Python_Scripts_Matt/Detecting_Hallmarks_Functions.py", line 30, in process_file
+    between = between + content[0]
+IndexError: list index out of range
+
+
+This error occured because one of the Seqs was N-masked. This caused there to be no "between" as there was 0 alignment between the sequence, and the masked Ns.
+I removed all instances of between as it is not a variable that I need or use, and tracking it accurately for edge cases would take more code than its worth.
