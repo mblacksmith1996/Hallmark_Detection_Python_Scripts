@@ -59,3 +59,22 @@ IndexError: list index out of range
 
 This error occured because one of the Seqs was N-masked. This caused there to be no "between" as there was 0 alignment between the sequence, and the masked Ns.
 I removed all instances of between as it is not a variable that I need or use, and tracking it accurately for edge cases would take more code than its worth.
+
+8/10/23
+Turned this directory into a github repo.
+After pushing the files into the repo I started modifying it so that Detecting_Hallmarks_Functions.py can be used for Anthony's dataset.
+Changes made so far include modifications to Detect_Poly_As. Now the function takes in an addtional parameter called internal.
+If internal is true, the script assumes that the poly(A) is within the range provided by extracted_seq.
+If False, the opposite is assumed and the Poly(A) is looked for just outside of extracted_seq.
+
+Additionally, the faidx_cmd and start_in_contig variables are now created in extract_for_Poly_A, A function called within Detect_Poly_As.
+
+Next, many changes were made to run_water to allow it to work differently base on the variable post_poly_A.
+If post_poly_A is false, it behaves as previous, if is True then it behaves differently where it looks specifically outside of the poly(A) tail for the TSD rather than the larger range.
+
+Many print statements were also removed
+
+8/10/23 continued into 8/11:
+continued working on run_water and investigate_TSD_validity.
+These scripts can now detect TSDs if the orientation is reverse, and post_poly_A is true.
+Need to investigate further to be sure that it is bug free.
