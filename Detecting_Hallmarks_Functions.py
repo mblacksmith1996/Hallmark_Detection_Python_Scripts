@@ -141,8 +141,19 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, post_po
             if seq1[2].lower() == seq2[2].lower():
                 print("Seq1 and Seq2 are identical")
             return seq1,seq2
-                
-        
+def Refine_Coords(seq1,seq2,extract):
+    if seq1 != "":
+        print(seq1,seq2,extract)
+        #print(int(seq1[0].split("-")[0])+int(seq1[3])+1,int(seq2[0].split("-")[0])-2+int(seq1[1]))
+        start_after_TSD = int(seq1[0].split("-")[0])+int(seq1[3])
+        end_before_TSD = int(seq2[0].split("-")[0])-1+int(seq1[1])
+        RM_coords = [extract[0],start_after_TSD,end_before_TSD]
+        TSDs = [extract[0],int(seq1[0].split("-")[0])+int(seq1[1])-1,int(seq1[0].split("-")[0])+int(seq1[3])-1,int(seq2[0].split("-")[0])+int(seq2[1])-1,int(seq2[0].split("-")[0])+int(seq2[3])-1]
+        #print(TSDs)
+    else:
+        RM_coords = extract
+        TSDs = []    
+    return(RM_coords,TSDs)
 # def ruun_water(flank, coords, extraction_path,faidx_output,ref):
         # #process the alignment
         # if seq1[2] == faidx_output[0].rstrip() or seq2[2] == faidx_output[0].rstrip():
@@ -217,7 +228,18 @@ def Repeat_Positions(repeat_masker_output, RM_position):
         O = 8
         
     else:
-        sys.exit()
+        command = f"cat {repeat_masker_output}"
+        proc = subprocess.Popen(command,shell=True,stdout=subprocess.PIPE)
+        rm_out,err = proc.communicate()
+        rm_out = rm_out.decode()
+        rm_out = rm_out.split("\n")
+        #print(rm_out)
+        
+        start_index = 5
+        end_index = 6
+        offset = 0
+        ME_Type = 10
+        O = 8
     
     print(f"RM for Repeat_Positions is {repeat_masker_output}")
     #new method of determining % L1 content.
@@ -237,7 +259,7 @@ def Repeat_Positions(repeat_masker_output, RM_position):
         RM_start_in_seq = int(line[start_index])+ offset
         RM_end_in_seq = int(line[end_index])
         Element_Class = line[ME_Type]
-        Element_Orientation = line[8]
+        Element_Orientation = line[O]
         
         #create list containing the location of the sequence relative to the LINE-1
         if repeat_masker_output.endswith(".bed") and Element_Orientation == "+":
@@ -246,10 +268,12 @@ def Repeat_Positions(repeat_masker_output, RM_position):
         elif repeat_masker_output.endswith(".bed") and Element_Orientation == "C":
             Position_within_Repeat = [int(line[9].split(',')[2]),int(line[9].split(',')[1])]
             orientation = "Reverse"
-        else:
-            print(line)
-            sys.exit()
-            
+        elif Element_Orientation == "+":
+            orientation = "Forward"
+            Position_within_Repeat = [int(line[11]),int(line[12])]
+        elif Element_Orientation == "C":
+            Position_within_Repeat = [int(line[13]),int(line[12])]
+            orientation = "Reverse"
         line_start = 0
         line_end = 0
 
@@ -472,13 +496,13 @@ def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orie
     return faidx_cmd, start_in_contig
     
 def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal):
-    faidx_cmd, start_in_contig = extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal)
-    trailing_sequence = ""
     if orientation != "Forward" and orientation != "Reverse":
         print("Multiple LINE-1s in different orientations. Cannot yet resolve poly(A) or 3' transduction")
         poly_a = []
         
-    else:
+    else:    
+        faidx_cmd, start_in_contig = extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal)
+        trailing_sequence = ""
         proc = subprocess.Popen(faidx_cmd,shell=True,stdout=subprocess.PIPE)
         faidx,err = proc.communicate()
         faidx = faidx.decode()
