@@ -78,3 +78,11 @@ Many print statements were also removed
 continued working on run_water and investigate_TSD_validity.
 These scripts can now detect TSDs if the orientation is reverse, and post_poly_A is true.
 Need to investigate further to be sure that it is bug free.
+
+8/14/23
+Many updated performed on Detecting_Hallmarks_Functions.py
+Repeat_Positions was updated to now work for when repeat_masker_output is a .out instead of .bed
+Detect_Poly_As was updated to properly terminated if the orientation is not Forward or Reverse
+A new function was added called Refine_Coords which will produce the variables RM_coords and TSDs. 
+This function creates a set of coordiates which goes from the start of insertion to end of insertion or from end of TSD1 to start of TSD2 depending on if a TSD was discovered.
+Other small changes were done. I don't think this should have a significant impact on other generated data, but I should go back and check.

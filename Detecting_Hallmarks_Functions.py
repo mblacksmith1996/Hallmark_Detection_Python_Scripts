@@ -38,10 +38,11 @@ def process_file(input_file):
                     i+=1
     return(seq1,seq2)#,between)
 
-def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,post_poly_A):
+def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,search_internal,interior_dist):
     #determine if the alignments start or end in the correct place
     alignment_fail = []
-    if post_poly_A == False:
+
+    if search_internal == True:
         for seq in [seq1,seq2]:
             if abs(flank_dist - int(seq[1])) > dist and abs(flank_dist - int(seq[3])) > dist:
                 if seq == seq1:
@@ -49,28 +50,30 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,post_p
                 else:
                     alignment_fail.append("seq2")
     else:
-        if orientation == "Forward":
-            #print("Forward orientation")
-            if int(seq2[1]) > dist:
-                alignment_fail.append(seq2)
-            if abs(flank_dist - int(seq1[1])) > dist and abs(flank_dist - int(seq1[3])) > dist:   
-                alignment_fail.append(seq1)
+        #if orientation == "Forward":
+        #    #print("Forward orientation")
+        #    if int(seq2[1]) > dist:
+        #        alignment_fail.append(seq2)
+        #    if abs(flank_dist - int(seq1[1])) > dist and abs(flank_dist - int(seq1[3])) > dist:   
+        #        alignment_fail.append(seq1)
             #print(alignment_fail)
-        elif orientation == "Reverse":
-            print(seq1,seq2)
-            if flank_dist - int(seq1[3]) > dist:
-                alignment_fail.append(seq2)
-            if abs(flank_dist - int(seq2[1])) > dist and abs(flank_dist - int(seq2[3])) > dist:   
-                alignment_fail.append(seq1)
+        #elif orientation == "Reverse":
+        print(seq1,seq2)
+        print(dist,flank_dist)
+        if abs(flank_dist - int(seq1[3])) > dist and abs(flank_dist - int(seq1[1])) > dist:
+            alignment_fail.append(seq2)
+        if abs(interior_dist - int(seq2[1])) > dist and abs(interior_dist - int(seq2[3])) > dist:   
+            alignment_fail.append(seq1)
             #sys.exit()
     print(alignment_fail)
+    #sys.exit()
     if len(alignment_fail) >= 1:
         print(f"At least 1 alignment failed to be withing {dist}bp of the start/end of the inserted sequence")
         print(seq1,seq2)
         return False, False
         
     else:
-        if post_poly_A == False:
+        if search_internal == True:
             if (int(seq1[1]) < 5) or (int(seq2[1]) < 5) or (flank_dist*2 - int(seq1[3]) < 5) or (flank_dist*2 - int(seq2[3]) < 5):
                 #print(length)
                 if flank_dist > length/2:
@@ -80,19 +83,19 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,post_p
                 print("TSD may be longer than extracted flank. Doubling flank and trying again")
                 subprocess.run("rm water.txt",shell=True)
                 return True, False
-        elif orientation == "Forward":
-            if (int(seq1[1]) < 5) or (flank_dist*2 - int(seq1[3]) < 5) or (flank_dist*2 - int(seq2[3]) < 5):
-                if flank_dist > length/2:
-                    False,False
-                #print("TSD may be longer than extracted flank. Doubling flank and trying again")
-                subprocess.run("rm water.txt",shell=True)
-                return True, False
-        elif orientation == "Reverse":
+        #elif orientation == "Forward":
+        #    if (int(seq1[1]) < 5) or (flank_dist*2 - int(seq1[3]) < 5) or (flank_dist*2 - int(seq2[3]) < 5):
+        #        if flank_dist > length/2:
+        #            False,False
+        #        #print("TSD may be longer than extracted flank. Doubling flank and trying again")
+        #        subprocess.run("rm water.txt",shell=True)
+        #        return True, False
+        else:
             #sys.exit()
-            if (int(seq1[1]) < 5) or (int(seq2[1]) < 5) or (flank_dist*2 - int(seq2[3]) < 5):
+            if (int(seq1[1]) < 5) or (flank_dist+interior_dist - int(seq2[3]) < 5):
                 #print(length)
-                if flank_dist > length/2:
-                    False,False
+                #if flank_dist > length/2:
+                    #False,False
                     #sys.exit()
                 #print(seq1,seq2)
                 print("TSD may be longer than extracted flank. Doubling flank and trying again")
@@ -102,20 +105,25 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,post_p
 
     #sys.exit()
 
-def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, post_poly_A):
+def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_internal):
     #Perform the Smith-Waterman alignment
+    if dist < 20:
+        interior_dist = dist
+    else:
+        interior_dist = 20
     re_run = True
     while re_run:
-        if post_poly_A != True:
-            extract_up = f"{coords[0]}:{coords[1]-flank_dist}-{coords[1]+(flank_dist -1)}"
+        if search_internal == True:
+            extract_up = f"{coords[0]}:{max(coords[1]-flank_dist,1)}-{coords[1]+(flank_dist -1)}"
             extract_down = f"{coords[0]}:{coords[2]-(flank_dist-1)}-{coords[2]+flank_dist}"
-        elif post_poly_A == True:
-            if orientation == "Forward":
-                extract_up = f"{coords[0]}:{coords[1]-flank_dist}-{coords[1]+(flank_dist -1)}"
-                extract_down = f"{coords[0]}:{coords[2]+1}-{coords[2]+flank_dist}"
-            elif orientation == "Reverse":
-                extract_up = f"{coords[0]}:{coords[1]-flank_dist}-{coords[1]-1}"
-                extract_down = f"{coords[0]}:{coords[2]-(flank_dist-1)}-{coords[2]+flank_dist}"
+        elif search_internal != True:
+            dist = flank_dist
+            #if orientation == "Forward":
+            #    extract_up = f"{coords[0]}:{max(coords[1]-flank_dist,1)}-{coords[1]+(flank_dist -1)}"
+            #    extract_down = f"{coords[0]}:{coords[2]+1}-{coords[2]+flank_dist}"
+            #elif orientation == "Reverse":
+            extract_up = f"{coords[0]}:{max(coords[1]-dist,1)}-{coords[1]+(interior_dist-1)}"
+            extract_down = f"{coords[0]}:{coords[2]-(interior_dist-1)}-{coords[2]+dist}"
 
         command = f"samtools faidx {extraction_path} {extract_up} > upstream_and_5_start.fa ; samtools faidx {extraction_path} {extract_down} > downstream_and_3_end.fa"
         print(command)
@@ -128,9 +136,10 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, post_po
         #sys.exit()
         seq1,seq2 = process_file("water.txt")   
         #print(seq1,seq2)
-        re_run, valid_TSD = investigate_TSD_validity(flank_dist,dist,seq1,seq2,coords[2]-coords[1]+1,orientation,post_poly_A)
+        re_run, valid_TSD = investigate_TSD_validity(flank_dist,dist,seq1,seq2,coords[2]-coords[1]+1,orientation,search_internal,interior_dist)
+        #sys.exit()
         if re_run == True:
-            flank_dist = flank_dist*2
+            flank_dist = flank_dist+5
             continue
             
         if valid_TSD != True:
@@ -465,7 +474,7 @@ def Repeat_Positions(repeat_masker_output, RM_position):
     #if len(L1s) > 1:
     #sys.exit()
     return L1_content, transduction, orientation, L1_pos, L1s
-def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal):
+def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal,interior_dist,exterior_cutoff=0):
     if internal == True:
         if transduction[0] != "N/A":
             if orientation == "Reverse":
@@ -484,109 +493,162 @@ def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orie
                 faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{extracted_seq[1]}-{min(extracted_seq[1]+extra_seq,extracted_seq[2])}"
                 start_in_contig = extracted_seq[1]
     elif internal == False:
+        if exterior_cutoff == 0 and orientation == "Forward":
+            exterior_cutoff = 100000000000
         if orientation == "Forward":
-            faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{extracted_seq[2]}-{extracted_seq[2]+extra_seq}"
-            start_in_contig = extracted_seq[2]
+            faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{extracted_seq[2]-(interior_dist-1)}-{min(extracted_seq[2]+extra_seq,exterior_cutoff)}"
+            start_in_contig = extracted_seq[2]-(interior_dist-1)
         elif orientation == "Reverse":
-            faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{extracted_seq[1]-extra_seq}-{extracted_seq[1]}"
-            start_in_contig = extracted_seq[1]-extra_seq
+            faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{max(extracted_seq[1]-extra_seq,exterior_cutoff)}-{extracted_seq[1]+(interior_dist-1)}"
+            start_in_contig = max(extracted_seq[1]-extra_seq,exterior_cutoff)
     else:
         sys.exit()
     #print(start_in_contig)
     return faidx_cmd, start_in_contig
     
-def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal):
+def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist,orientation,internal,exterior_cutoff=0):
+    re_run = True
     if orientation != "Forward" and orientation != "Reverse":
         print("Multiple LINE-1s in different orientations. Cannot yet resolve poly(A) or 3' transduction")
         poly_a = []
         
-    else:    
-        faidx_cmd, start_in_contig = extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal)
-        trailing_sequence = ""
-        proc = subprocess.Popen(faidx_cmd,shell=True,stdout=subprocess.PIPE)
-        faidx,err = proc.communicate()
-        faidx = faidx.decode()
-        #print(faidx,start_in_contig)
-        #sys.exit()
-        
-        if orientation == "Reverse":
-            A_or_T = "T"
-        elif orientation == "Forward":
-            A_or_T = "A"
-        poly_a = []
-        poly_a_in_progress = ""
-        start = 0
-        end = None
-        min_poly = 5
-        for line in faidx.split("\n")[1::]:
-            trailing_sequence = trailing_sequence + (line.rstrip())
-        trailing_sequence = trailing_sequence.upper()
-        for i in range(len(trailing_sequence)):
-            #print(i,trailing_sequence[i])
-            if trailing_sequence[i] == A_or_T and poly_a_in_progress == "":
-                poly_a_in_progress = poly_a_in_progress + (trailing_sequence[i])
-                start = i + start_in_contig
-            elif trailing_sequence[i] == A_or_T and not i == len(trailing_sequence) -1:
-                poly_a_in_progress  = poly_a_in_progress + (trailing_sequence[i])
-            elif trailing_sequence[i] != A_or_T and poly_a_in_progress != "" or i == len(trailing_sequence)-1:
-                upcoming_poly = 0
-                end_of_extract = False
-                for j in range(i+1,i+6):
-                    if j >= len(trailing_sequence):
-                        #print("Reached end of extracted sequence")
-                        end_of_extract = True
-                        break
-                    if trailing_sequence[j] == A_or_T:
-                        upcoming_poly +=1
-                #print(upcoming_poly)
-                if upcoming_poly >= 4 or end_of_extract == True and i+1 != len(trailing_sequence):
-                    poly_a_in_progress = poly_a_in_progress + trailing_sequence[i]
-                else:
-                #sys.exit()
-                    #trim the ends of the poly if they have mutations in them.
-                    #sys.exit()
-                    if i+1 == len(trailing_sequence) and trailing_sequence[i] == A_or_T:
+    else:   
+        while re_run == True:
+            if max_dist < 20:
+                interior_dist = max_dist
+            else:
+                interior_dist = 20
+            re_run = False
+            faidx_cmd, start_in_contig = extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal,interior_dist,exterior_cutoff)
+            print(faidx_cmd)
+            trailing_sequence = ""
+
+            proc = subprocess.Popen(faidx_cmd,shell=True,stdout=subprocess.PIPE)
+            faidx,err = proc.communicate()
+            faidx = faidx.decode()
+            #print(faidx,start_in_contig)
+            #sys.exit()
+            
+            if orientation == "Reverse":
+                A_or_T = "T"
+            elif orientation == "Forward":
+                A_or_T = "A"
+            poly_a = []
+            poly_a_in_progress = ""
+            start = 0
+            end = None
+            min_poly = 5
+            for line in faidx.split("\n")[1::]:
+                trailing_sequence = trailing_sequence + (line.rstrip())
+            trailing_sequence = trailing_sequence.upper()
+            #if orientation == "Reverse":
+            #    trailing_sequence = "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
+            for i in range(len(trailing_sequence)):
+                #print(i,trailing_sequence[i])
+                if trailing_sequence[i] == A_or_T and poly_a_in_progress == "":
+                    poly_a_in_progress = poly_a_in_progress + (trailing_sequence[i])
+                    start = i + start_in_contig
+                elif trailing_sequence[i] == A_or_T and not i == len(trailing_sequence) -1:
+                    poly_a_in_progress  = poly_a_in_progress + (trailing_sequence[i])
+                elif trailing_sequence[i] != A_or_T and poly_a_in_progress != "" or i == len(trailing_sequence)-1:
+                    upcoming_poly = 0
+                    end_of_extract = False
+                    for j in range(i+1,i+6):
+                        if j >= len(trailing_sequence):
+                            #print("Reached end of extracted sequence")
+                            end_of_extract = True
+                            break
+                        if trailing_sequence[j] == A_or_T:
+                            upcoming_poly +=1
+                    #print(upcoming_poly)
+                    if upcoming_poly >= 4 or end_of_extract == True and i+1 != len(trailing_sequence):
                         poly_a_in_progress = poly_a_in_progress + trailing_sequence[i]
-                    
-                    if not len(poly_a_in_progress) < min_poly:
-                        #poly_a_in_progress = "TTTTTT" + poly_a_in_progress + "TTTTTAAT"
-                        #print(poly_a_in_progress)
-                        end_poly = 3
-                        trim_length_start = 0
-                        #trim_length_end = len(poly_a_in_progress)
-                        while poly_a_in_progress[0:end_poly] != end_poly*A_or_T:
-                            #print(poly_a_in_progress[0:end_poly])
-                            if len(poly_a_in_progress) <= min_poly:
-                                poly_a_in_progress = ""
+                    else:
+                    #sys.exit()
+                        #trim the ends of the poly if they have mutations in them.
+                        #sys.exit()
+                        if i+1 == len(trailing_sequence) and trailing_sequence[i] == A_or_T:
+                            poly_a_in_progress = poly_a_in_progress + trailing_sequence[i]
+                        
+                        if not len(poly_a_in_progress) < min_poly:
+                            #poly_a_in_progress = "TTTTTT" + poly_a_in_progress + "TTTTTAAT"
+                            #print(poly_a_in_progress)
+                            end_poly = 3
+                            trim_length_start = 0
+                            #trim_length_end = len(poly_a_in_progress)
+                            while poly_a_in_progress[0:end_poly] != end_poly*A_or_T:
+                                #print(poly_a_in_progress[0:end_poly])
+                                if len(poly_a_in_progress) <= min_poly:
+                                    poly_a_in_progress = ""
+                                    #print(poly_a_in_progress)
+                                    break
+                                else:
+                                    poly_a_in_progress = poly_a_in_progress[1::]
+                                    start+=1
+                                    #print("removing 1 nucleotide")
                                 #print(poly_a_in_progress)
-                                break
-                            else:
-                                poly_a_in_progress = poly_a_in_progress[1::]
-                                start+=1
-                                #print("removing 1 nucleotide")
+                            #print('broke')
+                            while poly_a_in_progress[-1:-1*end_poly-1:-1] != end_poly*A_or_T:
+                                if len(poly_a_in_progress) <= min_poly:
+                                    poly_a_in_progress = ""
+                                    break
+                                else:
+                                    poly_a_in_progress = poly_a_in_progress[0:-1]
+                                    #print(poly_a_in_progress[-1:-1*end_poly-1:-1])
+                                #sys.exit()
+                                #print(poly_a_in_progress)
                             #print(poly_a_in_progress)
-                        #print('broke')
-                        while poly_a_in_progress[-1:-1*end_poly-1:-1] != end_poly*A_or_T:
-                            if len(poly_a_in_progress) <= min_poly:
-                                poly_a_in_progress = ""
-                                break
-                            else:
-                                poly_a_in_progress = poly_a_in_progress[0:-1]
-                                #print(poly_a_in_progress[-1:-1*end_poly-1:-1])
-                            #sys.exit()
-                            #print(poly_a_in_progress)
-                        #print(poly_a_in_progress)
-                        if len(poly_a_in_progress) > min_poly:
-                            if orientation == "Forward":
-                                #start = start - extra_seq
-                                end = start + len(poly_a_in_progress)
-                                #end = transduction[0]+trim_length_end - 100
-                            elif orientation == "Reverse":
-                                end = start + len(poly_a_in_progress)
-                            poly_a.append([start,poly_a_in_progress,end-1])                               
-                    poly_a_in_progress = ""
-    #print(poly_a)
-    return poly_a
+                            if len(poly_a_in_progress) > min_poly:
+                                if orientation == "Forward":
+                                    #start = start - extra_seq
+                                    end = start + len(poly_a_in_progress)
+                                    if (extracted_seq[2] + extra_seq) - (end-1) < 5 and exterior_cutoff != 0 and exterior_cutoff != "0":
+                                        re_run = True
+                                        extra_seq +=5
+                                        print(poly_a_in_progress)
+                                        print("Re-run happening, Forward")
+                                        #sys.exit()
+                                    #end = transduction[0]+trim_length_end - 100
+                                elif orientation == "Reverse":
+                                    end = start + len(poly_a_in_progress)
+                                    if abs((extracted_seq[1] - extra_seq) - (start)) < 5 and exterior_cutoff != 0 and exterior_cutoff != "0":
+                                        re_run = True
+                                        extra_seq +=5
+                                        print(poly_a_in_progress)
+                                        print("Re-run happening, Reverse")
+                                        #sys.exit()
+                                poly_a.append([start,poly_a_in_progress,end-1])                               
+                        poly_a_in_progress = ""
+    print(poly_a)
+    final_polys = []
+    
+    if internal == False:
+        terminated_early = False
+        if len(poly_a) > 0:
+            #print(orientation,extracted_seq,max_dist,extra_seq)
+            #Add code to handle it being at the end of distance.
+            for poly in poly_a:
+                if orientation == "Reverse":
+                    #sys.exit()
+                    if poly[2] < extracted_seq[1] - max_dist:
+                        print("Out of range")
+                    else:
+                        final_polys.append(poly)
+                        if (extracted_seq[1] - extra_seq) + poly[0] < 5:
+                            terminated_early = True
+                elif orientation == "Forward":
+                    if poly[0] > extracted_seq[2] + max_dist:
+                        print("Out of range")
+                    else:
+                        final_polys.append(poly)
+                        if (extracted_seq[2] + extra_seq) - poly[2] < 5:
+                            terminated_early = True
+                else:
+                    sys.exit()
+                #print(poly)
+            print(final_polys)
+            #sys.exit()
+    return final_polys, terminated_early
 def transduction_detection(poly_a_list):
     if len(poly_a_list) < 2:
         return ["",""]
