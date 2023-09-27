@@ -130,7 +130,8 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_
         subprocess.run(command, shell=True)    
         gap_open = 10
         gap_extend = 10
-        cmd = f"water upstream_and_5_start.fa downstream_and_3_end.fa -gapopen {gap_open} --gapextend {gap_extend} -datafile Custom_Matrix -outfile water.txt"
+        custom_matrix_path = os.path.dirname(__file__)
+        cmd = f"water upstream_and_5_start.fa downstream_and_3_end.fa -gapopen {gap_open} --gapextend {gap_extend} -datafile {custom_matrix_path}/Custom_Matrix -outfile water.txt"
         #print(cmd)
         subprocess.run(cmd, shell=True)
         #sys.exit()
