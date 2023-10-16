@@ -17,16 +17,30 @@ if __name__ == "__main__":
     (options, args)=parser.parse_args()
     
     
+#create dict of chrom lengths
+chr_dir = {}
+with open(f"{options.ref}.fai",'rt') as infile:
+    for line in infile:
+        line = line.split()
+        chr_dir[line[0]] = int(line[1])
+
 #define variables
+dist_from_start = 100
 #Testing different flank boundaries.
-dist_list = [10,20,30,40,50,60,70,80,90,100,150,200,250,300,350,400,450,500]
+dist_list = [10,20,30,40,50,60,70,80,90,100,200,300,400,500,750,1000,2000]
 for i in range(len(dist_list)):
+    end_of_chrs = 0
+    valid_retro = 0
     dist = dist_list[i]
     print(f"Dist={dist}")
     with open(options.retrogene_file,'rt') as input_file:
         with open(f"Retrogene_Output_dist_{dist}.txt",'wt') as outfile:
             #split line and determine orientation of retrogene
             for line in input_file.readlines():
+                #if "chr6" not in line:
+                #    continue
+                #if "LOC106559263" not in line:
+                #    continue
                 print(line.rstrip())
                 split_line = line.split()
                 if split_line[3] == "+":
@@ -35,10 +49,21 @@ for i in range(len(dist_list)):
                     orientation = "Reverse"
                 else:
                     sys.exit()
-                
+                if split_line[0] not in chr_dir.keys():
+                    sys.exit("Chromosome of retrogene not found in fasta index")
+                else:
+                    chr_length = chr_dir[split_line[0]]
+                    #print(chr_dir[split_line[0]])
+                    #sys.exit()
                 #extract retrogene boundaries and detect TSDs
+                if int(split_line[1]) <= dist_from_start or chr_length - int(split_line[2]) < dist_from_start:
+                    end_of_chrs +=1
+                    continue
+                else:
+                    valid_retro+=1
+                    #continue
                 extract_seq = [split_line[0],int(split_line[1]),int(split_line[2])]    
-                seq1,seq2 = Hallmarks.run_water(dist, dist, extract_seq, options.ref, options.ref,orientation,False)
+                seq1,seq2 = Hallmarks.run_water(dist, dist, extract_seq, options.ref, options.ref,orientation,False,chr_length)
                 print(f"seqs are {seq1} {seq2}")
                 if seq1 != "" and len(seq1[2].replace("-","")) >=5 and len(seq2[2].replace("-","")) >=5:
                     TSDs = [f'{extract_seq[0]}:{int(seq1[0].split("-")[0])+int(seq1[1])-1}-{int(seq1[0].split("-")[0])+int(seq1[3])-1}',seq1[2].replace("-",""),f'{extract_seq[0]}:{int(seq2[0].split("-")[0])+int(seq2[1])-1}-{int(seq2[0].split("-")[0])+int(seq2[3])-1}',seq2[2].replace("-","")]
@@ -48,12 +73,12 @@ for i in range(len(dist_list)):
                     print(TSDs)
                 #detect Poly(A). Poly_A cannot be detected outside of TSD if one exists.
                 if "N/A" in TSDs:
-                    poly_a, terminated = Hallmarks.Detect_Poly_As(["N/A"],options.ref,extract_seq,dist,dist,orientation,False)
+                    poly_a, terminated = Hallmarks.Detect_Poly_As(["N/A"],options.ref,extract_seq,dist,dist,orientation,False,chr_length)
                 else:
                     if orientation == "Forward":
-                        poly_a, terminated = Hallmarks.Detect_Poly_As(["N/A"],options.ref,extract_seq,dist,dist,orientation,False,int(TSDs[2].split(":")[1].split("-")[0])-1)
+                        poly_a, terminated = Hallmarks.Detect_Poly_As(["N/A"],options.ref,extract_seq,dist,dist,orientation,False,chr_length,int(TSDs[2].split(":")[1].split("-")[0])-1)
                     elif orientation == "Reverse":
-                        poly_a, terminated = Hallmarks.Detect_Poly_As(["N/A"],options.ref,extract_seq,dist,dist,orientation,False,int(TSDs[0].split(":")[1].split("-")[1])+1)
+                        poly_a, terminated = Hallmarks.Detect_Poly_As(["N/A"],options.ref,extract_seq,dist,dist,orientation,False,chr_length,int(TSDs[0].split(":")[1].split("-")[1])+1)
                 print(f"Printing Detected PolyAs {poly_a}")
                 
                 #Filter poly_A
@@ -80,7 +105,8 @@ for i in range(len(dist_list)):
                 if final_poly == []:
                     sys.exit()
                 print(final_poly)
-
+                
+                
                 
                 #Report Results
                 split_line.append(poly_coords)
@@ -91,3 +117,5 @@ for i in range(len(dist_list)):
                 output_line = "\t".join(split_line) + "\n"
                 print(output_line)
                 outfile.write(output_line)
+    print(f"Number of loci within {dist_from_start} of the start or end of the chromosome is {end_of_chrs}.")
+    
