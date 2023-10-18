@@ -68,7 +68,7 @@ for canine in canines.keys():
 #SBATCH --cpus-per-task=1\n\
 #SBATCH --ntasks-per-node=1\n\
 #SBATCH --mem-per-cpu=12G\n\
-#SBATCH --time=6:00:00\n\
+#SBATCH --time=8:00:00\n\
 #SBATCH --account=jmkidd0\n\
 #SBATCH --partition=standard\n\
 #SBATCH --output=logs/%x-%A_%a.out.log\n\
