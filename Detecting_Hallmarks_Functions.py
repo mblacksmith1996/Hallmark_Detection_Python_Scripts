@@ -10,8 +10,8 @@ def process_file(input_file):
         input_file (str): Path to file from which the alignment is being extracted
     
     Returns:
-        seq1: a list containing the first 13 characters of the a sequence, start position the aligned portion of the A sequence, the aligned nucleotides of the A sequence, the end position of the aligned A sequence
-        seq2: a list containing the first 13 characters of the a sequence, start position the aligned portion of the B sequence, the aligned nucleotides of the B sequence, the end position of the aligned B sequence
+        seq1: (list) containing the first 13 characters of the a sequence, start position the aligned portion of the A sequence, the aligned nucleotides of the A sequence, the end position of the aligned A sequence
+        seq2: (list) containing the first 13 characters of the b sequence, start position the aligned portion of the B sequence, the aligned nucleotides of the B sequence, the end position of the aligned B sequence
     """
     with open(input_file) as infile:
                 file_contents = infile.readlines()[32:-3:]
@@ -37,8 +37,24 @@ def process_file(input_file):
                     i+=1
     return(seq1,seq2)
 
-def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,search_internal,interior_dist):
-    #determine if the alignments start or end in the correct place
+def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,interior_dist):
+    """
+    Detects if target site duplications are near within a predetermined distance of the locus of interest.
+    Additionally, determines if flanks need to be extended (this occurs when the TSD is within the predetermined distance, but can be extended beyond the currently extracted sequence
+    
+    Args:
+        flank_dist: (int) the number of base pairs that are extracted beyond the locus of interest 
+        dist: (int) detected TSDs must be within dist bp of the start of the locus to be considered valid_TSD
+        seq1: (list) containing the first 13 characters of the a sequence, start position the aligned portion of the A sequence, the aligned nucleotides of the A sequence, the end position of the aligned A sequence
+        seq2: (list) containing the first 13 characters of the a sequence, start position the aligned portion of the B sequence, the aligned nucleotides of the B sequence, the end position of the aligned B sequence
+        length: (int) length of the insertion. This will be used in future version in which non-reference hallmark detection is possible
+        search_internal: (bool) Determines if TSDs can be detected within the locus of interest. Should be set to False for retrogene detection. Later, True will be added for non-reference hallmark detection
+        interior_dist: (int) The number of base pairs within the locus of interest that will be used to search for TSDs. Can be used when search_internal is False
+        
+    Returns:
+        bool: True if the flank has been extended and the alignment is to be re-performed.
+        bool: True if one or both of the sequences are invalid (as determined by proximity to the locus of interest). If True, the above bool is also set to False     
+    """
     alignment_fail = []
 
     if search_internal == True:
@@ -49,23 +65,14 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,search
                 else:
                     alignment_fail.append("seq2")
     else:
-        #if orientation == "Forward":
-        #    #print("Forward orientation")
-        #    if int(seq2[1]) > dist:
-        #        alignment_fail.append(seq2)
-        #    if abs(flank_dist - int(seq1[1])) > dist and abs(flank_dist - int(seq1[3])) > dist:   
-        #        alignment_fail.append(seq1)
-            #print(alignment_fail)
-        #elif orientation == "Reverse":
         print(seq1,seq2)
         print(dist,flank_dist)
         if abs(flank_dist - int(seq1[3])) > dist and abs(flank_dist - int(seq1[1])) > dist:
             alignment_fail.append(seq2)
         if abs(interior_dist - int(seq2[1])) > dist and abs(interior_dist - int(seq2[3])) > dist:   
             alignment_fail.append(seq1)
-            #sys.exit()
     print(alignment_fail)
-    #sys.exit()
+
     if len(alignment_fail) >= 1:
         print(f"At least 1 alignment failed to be withing {dist}bp of the start/end of the inserted sequence")
         print(seq1,seq2)
@@ -82,34 +89,34 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,search
                 print("TSD may be longer than extracted flank. Doubling flank and trying again")
                 subprocess.run("rm water.txt",shell=True)
                 return True, False
-        #elif orientation == "Forward":
-        #    if (int(seq1[1]) < 5) or (flank_dist*2 - int(seq1[3]) < 5) or (flank_dist*2 - int(seq2[3]) < 5):
-        #        if flank_dist > length/2:
-        #            False,False
-        #        #print("TSD may be longer than extracted flank. Doubling flank and trying again")
-        #        subprocess.run("rm water.txt",shell=True)
-        #        return True, False
         else:
             #sys.exit()
             if (int(seq1[1]) < 5) or (flank_dist+interior_dist - int(seq2[3]) < 5):
-                #print(length)
-                #if flank_dist > length/2:
-                    #False,False
-                    #sys.exit()
-                #print(seq1,seq2)
-                print("TSD may be longer than extracted flank. Doubling flank and trying again")
+                print("TSD may be longer than extracted flank. Extending flank and trying again")
                 subprocess.run("rm water.txt",shell=True)
                 return True, False
-        return False, True
-
-    #sys.exit()
-
+        #return False, True
+        
+        
 def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_internal, chrom_length):
-    #Perform the Smith-Waterman alignment
-    if dist < 0:
-        interior_dist = dist
-    else:
-        interior_dist = 0
+    """
+    Function to extract two sequences from a fasta file of interest and then perform a smith-waterman alignment using the EMBOSS module
+    
+    Args:
+        flank_dist: (int) the number of base pairs that are extracted beyond the locus of interest 
+        dist: (int) detected TSDs must be within dist bp of the start of the locus to be considered valid_TSD
+        coords: (list) containing the sequence name, start base, and end base of the locus of interest. 1 based 
+        extraction_path: (str) path to the fasta containing the sequence being extracted
+        ref: (str) path to reference. As of now not used, but likely will be for non-reference detection
+        orientation: (str) Forward or Reverse, the orientation of the retroelement in reference to the chromosome or contig
+        search_internal: (bool) Determines if TSDs can be detected within the locus of interest. Should be set to False for retrogene detection. Later, True will be added for retrogene hallmark detection
+        chrom_length: the length of the chromosome or contig in which the locus of interest resides
+        
+    Returns:
+        seq1: (list) containing the first 13 characters of the a sequence, start position the aligned portion of the A sequence, the aligned nucleotides of the A sequence, the end position of the aligned A sequence, returns "" if no TSD detected
+        seq2: (list) containing the first 13 characters of the b sequence, start position the aligned portion of the B sequence, the aligned nucleotides of the B sequence, the end position of the aligned B sequence, returns "" if no TSD detected
+    """
+    interior_dist = 0
     re_run = True
     while re_run:
         if search_internal == True:
@@ -117,10 +124,6 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_
             extract_down = f"{coords[0]}:{coords[2]-(flank_dist-1)}-{coords[2]+flank_dist}"
         elif search_internal != True:
             dist = flank_dist
-            #if orientation == "Forward":
-            #    extract_up = f"{coords[0]}:{max(coords[1]-flank_dist,1)}-{coords[1]+(flank_dist -1)}"
-            #    extract_down = f"{coords[0]}:{coords[2]+1}-{coords[2]+flank_dist}"
-            #elif orientation == "Reverse":
             extract_up = f"{coords[0]}:{max(coords[1]-dist,1)}-{coords[1]+(interior_dist-1)}"
             extract_down = f"{coords[0]}:{coords[2]-(interior_dist-1)}-{coords[2]+dist}"
 
@@ -133,10 +136,8 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_
         cmd = f"water upstream_and_5_start.fa downstream_and_3_end.fa -gapopen {gap_open} --gapextend {gap_extend} -datafile {custom_matrix_path}/Custom_Matrix -outfile water.txt"
         #print(cmd)
         subprocess.run(cmd, shell=True)
-        #sys.exit()
         seq1,seq2 = process_file("water.txt")   
-        #print(seq1,seq2)
-        re_run, valid_TSD = investigate_TSD_validity(flank_dist,dist,seq1,seq2,coords[2]-coords[1]+1,orientation,search_internal,interior_dist)
+        re_run, valid_TSD = investigate_TSD_validity(flank_dist,dist,seq1,seq2,coords[2]-coords[1]+1,search_internal,interior_dist)
         
         #Check for edge cases
         if coords[1]-flank_dist <= 1:
@@ -159,6 +160,7 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_
             if seq1[2].lower() == seq2[2].lower():
                 print("Seq1 and Seq2 are identical")
             return seq1,seq2
+            
 def Refine_Coords(seq1,seq2,extract):
     if seq1 != "":
         print(seq1,seq2,extract)
@@ -484,6 +486,24 @@ def Repeat_Positions(repeat_masker_output, RM_position):
     #sys.exit()
     return L1_content, transduction, orientation, L1_pos, L1s
 def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal,interior_dist,exterior_cutoff=0):
+    """
+    Creates the samtools faidx command which will extract sequence for poly(A) detection.
+        
+    Args:
+        transduction: Currently not used, will be needed in a future version for detecting non-reference retroelements
+        extraction_path: (str) path to the fasta containing the sequence being extracted
+        extracted_seq: (list) containing the sequence name, start base, and end base of the locus of interest. 1 based 
+        extra_seq: (int) the number of base pairs that are extracted beyond the locus of interest 
+        orientation: (str) Forward or Reverse, the orientation of the retroelement in reference to the chromosome or contig
+        internal: (bool) Determines if Poly(A)s can be detected within the locus of interest. Should be set to False for retrogene detection. Later, True will be added for retrogene hallmark detection
+        interior_dist: (int) The number of base pairs within the locus of interest that will be used to search for Poly(A)s. Can be used when search_internal is False
+        exterior_cutoff: (int) The minimum/maximum (depending on orientation) distance that the poly(A) can be expanded into. This prevents expansion into TSDs. Default = 0
+        
+    Returns:
+        faidx_cmd: (str) the samtools faidx command that will be used to extract sequence. If the TSD is directly adjacent to the locus of interest, no poly(A) will be found and faidx_cmd is equal to "No Poly A"
+        start_in_contig: (int) The distance into the contig/chromosome of the first base extracted. 1 based.
+    """
+    
     if internal == True:
         if transduction[0] != "N/A":
             if orientation == "Reverse":
@@ -524,6 +544,24 @@ def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orie
     return faidx_cmd, start_in_contig
     
 def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist,orientation,internal,chrom_length,exterior_cutoff=0):
+    """
+    Detects Poly(A) tails located within extra_seq base pairs of a locus of interest. 
+        
+    Args:
+        transduction: Currently not used, will be needed in a future version for detecting non-reference retroelements
+        extraction_path: (str) path to the fasta containing the sequence being extracted
+        extracted_seq: (list) containing the sequence name, start base, and end base of the locus of interest. 1 based 
+        extra_seq: (int) the number of base pairs that are extracted beyond the locus of interest 
+        max_dist: (int) detected Poly(A)s must be within dist bp of the start of the locus to be considered a valid poly(A)
+        orientation: (str) Forward or Reverse, the orientation of the retroelement in reference to the chromosome or contig
+        internal: (bool) Determines if Poly(A)s can be detected within the locus of interest. Should be set to False for retrogene detection. Later, True will be added for retrogene hallmark detection
+        chrom_length: the length of the chromosome or contig in which the locus of interest resides
+        exterior_cutoff: (int) The minimum/maximum (depending on orientation) distance that the poly(A) can be expanded into. This prevents expansion into TSDs. Default = 0
+        
+    Returns:
+        faidx_cmd: (str) the samtools faidx command that will be used to extract sequence. If the TSD is directly adjacent to the locus of interest, no poly(A) will be found and faidx_cmd is equal to "No Poly A"
+        start_in_contig: (int) The distance into the contig/chromosome of the first base extracted. 1 based.
+    """
     re_run = True
     if orientation != "Forward" and orientation != "Reverse":
         print("Multiple LINE-1s in different orientations. Cannot yet resolve poly(A) or 3' transduction")
@@ -531,10 +569,7 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
         
     else:   
         while re_run == True:
-            if max_dist < 0:
-                interior_dist = max_dist
-            else:
-                interior_dist = 0
+            interior_dist = 0
             re_run = False
             
 
@@ -549,8 +584,6 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
             proc = subprocess.Popen(faidx_cmd,shell=True,stdout=subprocess.PIPE)
             faidx,err = proc.communicate()
             faidx = faidx.decode()
-            #print(faidx,start_in_contig)
-            #sys.exit()
             
             if orientation == "Reverse":
                 A_or_T = "T"
@@ -564,10 +597,7 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
             for line in faidx.split("\n")[1::]:
                 trailing_sequence = trailing_sequence + (line.rstrip())
             trailing_sequence = trailing_sequence.upper()
-            #if orientation == "Reverse":
-            #    trailing_sequence = "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
             for i in range(len(trailing_sequence)):
-                #print(i,trailing_sequence[i])
                 if trailing_sequence[i] == A_or_T and poly_a_in_progress == "":
                     poly_a_in_progress = poly_a_in_progress + (trailing_sequence[i])
                     start = i + start_in_contig
@@ -578,49 +608,33 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                     end_of_extract = False
                     for j in range(i+1,i+6):
                         if j >= len(trailing_sequence):
-                            #print("Reached end of extracted sequence")
                             end_of_extract = True
                             break
                         if trailing_sequence[j] == A_or_T:
                             upcoming_poly +=1
-                    #print(upcoming_poly)
                     if upcoming_poly >= 4 or end_of_extract == True and i+1 != len(trailing_sequence):
                         poly_a_in_progress = poly_a_in_progress + trailing_sequence[i]
                     else:
-                    #sys.exit()
                         #trim the ends of the poly if they have mutations in them.
-                        #sys.exit()
                         if i+1 == len(trailing_sequence) and trailing_sequence[i] == A_or_T:
                             poly_a_in_progress = poly_a_in_progress + trailing_sequence[i]
                         
                         if not len(poly_a_in_progress) < min_poly:
-                            #poly_a_in_progress = "TTTTTT" + poly_a_in_progress + "TTTTTAAT"
-                            #print(poly_a_in_progress)
                             end_poly = 3
                             trim_length_start = 0
-                            #trim_length_end = len(poly_a_in_progress)
                             while poly_a_in_progress[0:end_poly] != end_poly*A_or_T:
-                                #print(poly_a_in_progress[0:end_poly])
                                 if len(poly_a_in_progress) <= min_poly:
                                     poly_a_in_progress = ""
-                                    #print(poly_a_in_progress)
                                     break
                                 else:
                                     poly_a_in_progress = poly_a_in_progress[1::]
                                     start+=1
-                                    #print("removing 1 nucleotide")
-                                #print(poly_a_in_progress)
-                            #print('broke')
                             while poly_a_in_progress[-1:-1*end_poly-1:-1] != end_poly*A_or_T:
                                 if len(poly_a_in_progress) <= min_poly:
                                     poly_a_in_progress = ""
                                     break
                                 else:
                                     poly_a_in_progress = poly_a_in_progress[0:-1]
-                                    #print(poly_a_in_progress[-1:-1*end_poly-1:-1])
-                                #sys.exit()
-                                #print(poly_a_in_progress)
-                            #print(poly_a_in_progress)
                             if len(poly_a_in_progress) > min_poly:
                                 if orientation == "Forward":
                                     #start = start - extra_seq
@@ -633,8 +647,6 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                         extra_seq +=5
                                         print(poly_a_in_progress)
                                         print("Re-run happening, Forward")
-                                        #sys.exit()
-                                    #end = transduction[0]+trim_length_end - 100
                                 elif orientation == "Reverse":
                                     end = start + len(poly_a_in_progress)
                                     if abs((extracted_seq[1] - extra_seq) - (start)) < 5 and exterior_cutoff != 0 and exterior_cutoff != "0":
@@ -643,7 +655,6 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                             extra_seq +=5
                                             print(poly_a_in_progress)
                                             print("Re-run happening, Reverse")
-                                            #sys.exit()
                                         else:
                                             print("Re-run not happening. Too close to start of chrom")
                                 poly_a.append([start,poly_a_in_progress,end-1])                               
@@ -654,11 +665,8 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
     if internal == False:
         terminated_early = False
         if len(poly_a) > 0:
-            #print(orientation,extracted_seq,max_dist,extra_seq)
-            #Add code to handle it being at the end of distance.
             for poly in poly_a:
                 if orientation == "Reverse":
-                    #sys.exit()
                     if poly[2] < extracted_seq[1] - max_dist:
                         print("Out of range")
                     else:
@@ -674,9 +682,7 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                             terminated_early = True
                 else:
                     sys.exit()
-                #print(poly)
             print(final_polys)
-            #sys.exit()
     return final_polys, terminated_early
 def transduction_detection(poly_a_list):
     if len(poly_a_list) < 2:
