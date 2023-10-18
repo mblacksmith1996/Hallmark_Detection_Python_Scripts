@@ -58,7 +58,8 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,in
     alignment_fail = []
 
     if search_internal == True:
-        continue 
+        sys.exit("search_internal will be enabled in a future update. Please set search_internal == False")
+         
         #to be added at a later date for non-reference retro-intersetions
     else:
         print(seq1,seq2)
@@ -76,7 +77,7 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,in
         
     else:
         if search_internal == True:
-           continue 
+            sys.exit("search_internal will be enabled in a future update. Please set search_internal == False"
             #to be added at a later date for non-reference retro-intersetions
         else:
             #sys.exit()
@@ -109,8 +110,8 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_
     re_run = True
     while re_run:
         if search_internal == True:
-                   continue 
-                    #to be added at a later date for non-reference retro-intersetions
+            sys.exit("search_internal will be enabled in a future update. Please set search_internal == False")
+            #to be added at a later date for non-reference retro-intersetions
         elif search_internal != True:
             dist = flank_dist
             extract_up = f"{coords[0]}:{max(coords[1]-dist,1)}-{coords[1]+(interior_dist-1)}"
@@ -171,7 +172,7 @@ def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orie
     """
     
     if internal == True:
-        continue 
+        sys.exit("internal == True will be enabled in a future update. Please set internal == False"        
         #to be added at a later date for non-reference retro-intersetions
     elif internal == False:
         if exterior_cutoff == 0 and orientation == "Forward":

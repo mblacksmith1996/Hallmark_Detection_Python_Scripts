@@ -26,8 +26,8 @@ with open(f"{options.ref}.fai",'rt') as infile:
 
 #define variables
 dist_from_start = 100
-#Testing different flank boundaries.
 dist_list = [10,20,30,40,50,60,70,80,90,100,200,300,400,500,750,1000,2000]
+
 for i in range(len(dist_list)):
     end_of_chrs = 0
     valid_retro = 0
@@ -37,10 +37,6 @@ for i in range(len(dist_list)):
         with open(f"Retrogene_Output_dist_{dist}.txt",'wt') as outfile:
             #split line and determine orientation of retrogene
             for line in input_file.readlines():
-                if "chrX" not in line:
-                    continue
-                if "48558537" not in line:
-                    continue
                 print(line.rstrip())
                 split_line = line.split()
                 if split_line[3] == "+":
@@ -53,15 +49,13 @@ for i in range(len(dist_list)):
                     sys.exit("Chromosome of retrogene not found in fasta index")
                 else:
                     chr_length = chr_dir[split_line[0]]
-                    #print(chr_dir[split_line[0]])
-                    #sys.exit()
-                #extract retrogene boundaries and detect TSDs
+
                 if int(split_line[1]) <= dist_from_start or chr_length - int(split_line[2]) < dist_from_start:
                     end_of_chrs +=1
                     continue
                 else:
                     valid_retro+=1
-                    #continue
+                    
                 extract_seq = [split_line[0],int(split_line[1]),int(split_line[2])]    
                 seq1,seq2 = Hallmarks.run_water(dist, dist, extract_seq, options.ref, options.ref,orientation,False,chr_length)
                 print(f"seqs are {seq1} {seq2}")
