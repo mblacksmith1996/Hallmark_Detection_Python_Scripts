@@ -6,16 +6,17 @@ def process_file(input_file):
     """
     Extract the query, reference, and between sequences from a smith-waterman alignment
     
-    Paramters:
+    Args:
         input_file (str): Path to file from which the alignment is being extracted
     
+    Returns:
+        seq1: a list containing the first 13 characters of the a sequence, start position the aligned portion of the A sequence, the aligned nucleotides of the A sequence, the end position of the aligned A sequence
+        seq2: a list containing the first 13 characters of the a sequence, start position the aligned portion of the B sequence, the aligned nucleotides of the B sequence, the end position of the aligned B sequence
     """
     with open(input_file) as infile:
                 file_contents = infile.readlines()[32:-3:]
-                #sys.exit()
                 i = 0
                 seq1 = ["","","",""]
-                #between = ""
                 seq2 = ["","","",""]
                 while i < len(file_contents):
                     content = file_contents[i].split()
@@ -26,8 +27,6 @@ def process_file(input_file):
                         seq1[2] = seq1[2] + content[2]
                         if i+4 == len(file_contents):
                             seq1[3] = (content[3])
-                    #elif i%4 == 1:
-                    #    between = between + content[0]
                     elif i%4 == 2:
                         if seq2[0] == "":
                             seq2[0] = (content[0])
@@ -36,7 +35,7 @@ def process_file(input_file):
                         if i+2 == len(file_contents):
                             seq2[3] = (content[3])
                     i+=1
-    return(seq1,seq2)#,between)
+    return(seq1,seq2)
 
 def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,search_internal,interior_dist):
     #determine if the alignments start or end in the correct place
@@ -105,12 +104,12 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,orientation,search
 
     #sys.exit()
 
-def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_internal):
+def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_internal, chrom_length):
     #Perform the Smith-Waterman alignment
-    if dist < 20:
+    if dist < 0:
         interior_dist = dist
     else:
-        interior_dist = 20
+        interior_dist = 0
     re_run = True
     while re_run:
         if search_internal == True:
@@ -138,7 +137,16 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_
         seq1,seq2 = process_file("water.txt")   
         #print(seq1,seq2)
         re_run, valid_TSD = investigate_TSD_validity(flank_dist,dist,seq1,seq2,coords[2]-coords[1]+1,orientation,search_internal,interior_dist)
-        #sys.exit()
+        
+        #Check for edge cases
+        if coords[1]-flank_dist <= 1:
+            re_run = False
+        elif coords[2]+dist >= chrom_length:
+            re_run = False
+        elif len(seq1[2]) == 1:
+            re_run = False
+        elif "N" in seq1[2] or "N" in seq2[2]:
+            sys.exit("Masked based in aligned sequence.")
         if re_run == True:
             flank_dist = flank_dist+5
             continue
@@ -498,16 +506,24 @@ def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orie
             exterior_cutoff = 100000000000
         if orientation == "Forward":
             faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{extracted_seq[2]-(interior_dist-1)}-{min(extracted_seq[2]+extra_seq,exterior_cutoff)}"
+            extract_length = min(extracted_seq[2]+extra_seq,exterior_cutoff)-(extracted_seq[2]-(interior_dist-1))
             start_in_contig = extracted_seq[2]-(interior_dist-1)
         elif orientation == "Reverse":
             faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{max(extracted_seq[1]-extra_seq,exterior_cutoff)}-{extracted_seq[1]+(interior_dist-1)}"
+            extract_length = (extracted_seq[1]+(interior_dist-1)) - max(extracted_seq[1]-extra_seq,exterior_cutoff)
             start_in_contig = max(extracted_seq[1]-extra_seq,exterior_cutoff)
+        
+        #occurs if the TSD starts at the first base of sequence. Thus no Poly(A) can be detected.
+        if extract_length == -1:
+            faidx_cmd = "No Poly A"
+        elif extract_length < -1:
+            sys.exit("Invalid length for poly(A) discovery")
     else:
         sys.exit()
     #print(start_in_contig)
     return faidx_cmd, start_in_contig
     
-def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist,orientation,internal,exterior_cutoff=0):
+def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist,orientation,internal,chrom_length,exterior_cutoff=0):
     re_run = True
     if orientation != "Forward" and orientation != "Reverse":
         print("Multiple LINE-1s in different orientations. Cannot yet resolve poly(A) or 3' transduction")
@@ -515,15 +531,21 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
         
     else:   
         while re_run == True:
-            if max_dist < 20:
+            if max_dist < 0:
                 interior_dist = max_dist
             else:
-                interior_dist = 20
+                interior_dist = 0
             re_run = False
+            
+
             faidx_cmd, start_in_contig = extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal,interior_dist,exterior_cutoff)
             print(faidx_cmd)
             trailing_sequence = ""
-
+            
+            if faidx_cmd == "No Poly A":
+                poly_a = []
+                break
+                
             proc = subprocess.Popen(faidx_cmd,shell=True,stdout=subprocess.PIPE)
             faidx,err = proc.communicate()
             faidx = faidx.decode()
@@ -604,6 +626,9 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                     #start = start - extra_seq
                                     end = start + len(poly_a_in_progress)
                                     if (extracted_seq[2] + extra_seq) - (end-1) < 5 and exterior_cutoff != 0 and exterior_cutoff != "0":
+                                        if extracted_seq[2] + extra_seq >= chrom_length:
+                                            re_run = False
+                                            print("Re-run not happening. At end of chromosome")
                                         re_run = True
                                         extra_seq +=5
                                         print(poly_a_in_progress)
@@ -613,11 +638,14 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                 elif orientation == "Reverse":
                                     end = start + len(poly_a_in_progress)
                                     if abs((extracted_seq[1] - extra_seq) - (start)) < 5 and exterior_cutoff != 0 and exterior_cutoff != "0":
-                                        re_run = True
-                                        extra_seq +=5
-                                        print(poly_a_in_progress)
-                                        print("Re-run happening, Reverse")
-                                        #sys.exit()
+                                        if extracted_seq[1] - extra_seq > 1:
+                                            re_run = True
+                                            extra_seq +=5
+                                            print(poly_a_in_progress)
+                                            print("Re-run happening, Reverse")
+                                            #sys.exit()
+                                        else:
+                                            print("Re-run not happening. Too close to start of chrom")
                                 poly_a.append([start,poly_a_in_progress,end-1])                               
                         poly_a_in_progress = ""
     print(poly_a)

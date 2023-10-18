@@ -37,10 +37,10 @@ for i in range(len(dist_list)):
         with open(f"Retrogene_Output_dist_{dist}.txt",'wt') as outfile:
             #split line and determine orientation of retrogene
             for line in input_file.readlines():
-                #if "chr6" not in line:
-                #    continue
-                #if "LOC106559263" not in line:
-                #    continue
+                if "chrX" not in line:
+                    continue
+                if "48558537" not in line:
+                    continue
                 print(line.rstrip())
                 split_line = line.split()
                 if split_line[3] == "+":
@@ -115,7 +115,8 @@ for i in range(len(dist_list)):
                     split_line.append(str(item))
                 split_line.append(str(terminated))
                 output_line = "\t".join(split_line) + "\n"
-                print(output_line)
+                print(output_line,flush=True)
                 outfile.write(output_line)
+                outfile.flush()
     print(f"Number of loci within {dist_from_start} of the start or end of the chromosome is {end_of_chrs}.")
     
