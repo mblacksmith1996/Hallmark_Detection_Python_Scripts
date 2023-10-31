@@ -2,7 +2,6 @@ import os
 import subprocess
 import sys
 
-#ref_Path = "/home/blacksmi/links/kidd-lab/genomes/UU_Cfam_GSD_1.0/ref/UU_Cfam_GSD_1.0.fa"
 Data_Path = "/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/blat_results/"
 Hallmarks_Path = "/home/blacksmi/links/kidd-lab/matt-projects/Generic_Python_Scripts_Matt/Retrogene_Hallmarks_Detection.py"
 generic_scripts_path = os.path.dirname(__file__)
@@ -16,10 +15,6 @@ os.chdir(Working_dir)
 if not os.path.exists("logs"):
     os.mkdir("logs")
     
-#show version of modules used:
-subprocess.run("module list > Modules_loaded.txt",shell=True,stdout=subprocess.PIPE)
-subprocess.run("date >> Modules_loaded.txt",shell=True,stdout=subprocess.PIPE)
-
 #create commands
 canines = {"china":["/nfs/turbo/jmkidddata/genomes/China_UNSW_CanFamBas_1.2/ref/China_UNSW_CanFamBas_1.2.fa",\
 "/home/blacksmi/links/kidd-lab/genomes/China_UNSW_CanFamBas_1.2/ref/China_UNSW_CanFamBas_1.2.gaps.bed"], \
@@ -49,13 +44,10 @@ with open("Retrogene_CMDs.txt",'wt') as outfile:
         with open(f"{Data_Path}/{canine}.blat_retrocopies.sorted.txt","rt") as infile:
             with open(f"{canine}/{canine}.blat_retrocopies.sorted.txt",'wt') as out_loci:
                 for line in infile:
-                    #print(line)
                     line = line.split()
                     line[1] = str(int(line[1])-1)
                     line = "\t".join(line)+"\n"
                     out_loci.write(line)
-                    #print(line)
-                #sys.exit()
                 
         #seperate the hits near gaps from those more distal
         overlap_cmd = f"bedtools window -w {dist_from_gaps} -u -a {canine}/{canine}.blat_retrocopies.sorted.txt -b {canines[canine][1]} > {canine}/{canine}.blat_retrocopies_near_gaps.bed"
@@ -66,14 +58,11 @@ with open("Retrogene_CMDs.txt",'wt') as outfile:
         with open(f"{canine}/{canine}.blat_retrocopies_no_gaps.bed","rt") as infile:
             with open(f"{canine}/{canine}.blat_retrocopies_no_gaps.txt",'wt') as out_loci:
                 for line in infile:
-                    #print(line)
                     line = line.split()
                     line[1] = str(int(line[1])+1)
                     line = "\t".join(line)+"\n"
                     out_loci.write(line)
-                    #print(line)
-                #sys.exit()
-        #print(cmd)
+
         cmd = f"cd {canine} && python {Hallmarks_Path} --locus_file {canine}.blat_retrocopies_no_gaps.txt --reference {canines[canine][0]}\n"
         outfile.write(cmd)
 
@@ -85,7 +74,7 @@ with open(f"Scale_Up_Retrogene_Driver.sh", 'wt') as file:
 #SBATCH --ntasks=1\n\
 #SBATCH --cpus-per-task=1\n\
 #SBATCH --ntasks-per-node=1\n\
-#SBATCH --mem-per-cpu=12G\n\
+#SBATCH --mem-per-cpu=8G\n\
 #SBATCH --time=6:00:00\n\
 #SBATCH --account=jmkidd0\n\
 #SBATCH --partition=standard\n\

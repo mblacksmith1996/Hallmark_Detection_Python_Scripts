@@ -62,31 +62,13 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,in
          
         #to be added at a later date for non-reference retro-intersetions
     else:
-        print(seq1,seq2)
-        print(dist,flank_dist)
-        if abs(flank_dist - int(seq1[3])) > dist and abs(flank_dist - int(seq1[1])) > dist:
-            alignment_fail.append(seq2)
-        if abs(interior_dist - int(seq2[1])) > dist and abs(interior_dist - int(seq2[3])) > dist:   
-            alignment_fail.append(seq1)
-    print(alignment_fail)
-
-    if len(alignment_fail) >= 1:
-        print(f"At least 1 alignment failed to be withing {dist}bp of the start/end of the inserted sequence")
-        print(seq1,seq2)
-        return False, False
-        
-    else:
-        if search_internal == True:
-            sys.exit("search_internal will be enabled in a future update. Please set search_internal == False"
-            #to be added at a later date for non-reference retro-intersetions
-        else:
-            #sys.exit()
-            if (int(seq1[1]) < 5) or (flank_dist+interior_dist - int(seq2[3]) < 5):
-                print("TSD may be longer than extracted flank. Extending flank and trying again")
-                subprocess.run("rm water.txt",shell=True)
-                return True, False
-        #return False, True
-        
+        #sys.exit()
+        if (int(seq1[1]) <= 5) or (flank_dist+interior_dist - int(seq2[3]) < 5):
+            print("TSD may be longer than extracted flank. Extending flank and trying again")
+            subprocess.run("rm water.txt",shell=True)
+            return True, False
+    return False, True
+    
         
 def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_internal, chrom_length):
     """
@@ -172,7 +154,7 @@ def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orie
     """
     
     if internal == True:
-        sys.exit("internal == True will be enabled in a future update. Please set internal == False"        
+        sys.exit("internal == True will be enabled in a future update. Please set internal == False")        
         #to be added at a later date for non-reference retro-intersetions
     elif internal == False:
         if exterior_cutoff == 0 and orientation == "Forward":
@@ -212,8 +194,8 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
         exterior_cutoff: (int) The minimum/maximum (depending on orientation) distance that the poly(A) can be expanded into. This prevents expansion into TSDs. Default = 0
         
     Returns:
-        faidx_cmd: (str) the samtools faidx command that will be used to extract sequence. If the TSD is directly adjacent to the locus of interest, no poly(A) will be found and faidx_cmd is equal to "No Poly A"
-        start_in_contig: (int) The distance into the contig/chromosome of the first base extracted. 1 based.
+        final_polys: (list) a list of lists where each sublist contains in order the start coordinate of each detected poly A, its sequence, the end coordinate of each poly A. All coordinates are 1 based. If no poly A is detected, an empty list is returned.
+        terminated_early: (bool) Returns True if the final poly(A) would be extended if not for a limiting factor such as extending into the beginning/end of a chromosome or into a previously detected TSD. Primarily used for debugging. 
     """
     re_run = True
     if orientation != "Forward" and orientation != "Reverse":
@@ -276,23 +258,23 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                             end_poly = 3
                             trim_length_start = 0
                             while poly_a_in_progress[0:end_poly] != end_poly*A_or_T:
-                                if len(poly_a_in_progress) <= min_poly:
+                                if len(poly_a_in_progress) < min_poly:
                                     poly_a_in_progress = ""
                                     break
                                 else:
                                     poly_a_in_progress = poly_a_in_progress[1::]
                                     start+=1
                             while poly_a_in_progress[-1:-1*end_poly-1:-1] != end_poly*A_or_T:
-                                if len(poly_a_in_progress) <= min_poly:
+                                if len(poly_a_in_progress) < min_poly:
                                     poly_a_in_progress = ""
                                     break
                                 else:
                                     poly_a_in_progress = poly_a_in_progress[0:-1]
-                            if len(poly_a_in_progress) > min_poly:
+                            if len(poly_a_in_progress) >= min_poly:
                                 if orientation == "Forward":
                                     #start = start - extra_seq
-                                    end = start + len(poly_a_in_progress)
-                                    if (extracted_seq[2] + extra_seq) - (end-1) < 5 and exterior_cutoff != 0 and exterior_cutoff != "0":
+                                    end = start + len(poly_a_in_progress)-1
+                                    if (extracted_seq[2] + extra_seq) - (end) < 5 and (exterior_cutoff == 0 or exterior_cutoff == "0"):
                                         if extracted_seq[2] + extra_seq >= chrom_length:
                                             re_run = False
                                             print("Re-run not happening. At end of chromosome")
@@ -301,8 +283,8 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                         print(poly_a_in_progress)
                                         print("Re-run happening, Forward")
                                 elif orientation == "Reverse":
-                                    end = start + len(poly_a_in_progress)
-                                    if abs((extracted_seq[1] - extra_seq) - (start)) < 5 and exterior_cutoff != 0 and exterior_cutoff != "0":
+                                    end = start + len(poly_a_in_progress)-1
+                                    if abs((extracted_seq[1] - extra_seq) - (start)) <= 5 and (exterior_cutoff == 0 or exterior_cutoff == "0"):
                                         if extracted_seq[1] - extra_seq > 1:
                                             re_run = True
                                             extra_seq +=5
@@ -310,7 +292,7 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                             print("Re-run happening, Reverse")
                                         else:
                                             print("Re-run not happening. Too close to start of chrom")
-                                poly_a.append([start,poly_a_in_progress,end-1])                               
+                                poly_a.append([start,poly_a_in_progress,end])                               
                         poly_a_in_progress = ""
     print(poly_a)
     final_polys = []
@@ -324,7 +306,7 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                         print("Out of range")
                     else:
                         final_polys.append(poly)
-                        if (extracted_seq[1] - extra_seq) + poly[0] < 5:
+                        if abs(extracted_seq[1] - extra_seq) - poly[0] <= 5:
                             terminated_early = True
                 elif orientation == "Forward":
                     if poly[0] > extracted_seq[2] + max_dist:
