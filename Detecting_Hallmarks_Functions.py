@@ -2,6 +2,34 @@ import sys
 import os
 import subprocess
 
+def complement(c):
+    if c == 'A':
+        return 'T'
+    if c == 'T':
+        return 'A'
+    if c == 'C':
+        return 'G'
+    if c == 'G':
+        return 'C'
+    if c == 'a':
+        return 't'
+    if c == 't':
+        return 'a'
+    if c == 'c':
+        return 'g'
+    if c == 'g':
+        return 'c'
+    # If not ACTGactg simply return same character
+    return c    
+
+def revcomp(seq):
+    c = ''
+    seq = seq[::-1] #reverse
+    # Note, this good be greatly sped up using list operations
+    seq = [complement(i) for i in seq]
+    c = ''.join(seq)
+    return c
+    
 def process_file(input_file):
     """
     Extract the query, reference, and between sequences from a smith-waterman alignment
@@ -278,10 +306,11 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                         if extracted_seq[2] + extra_seq >= chrom_length:
                                             re_run = False
                                             print("Re-run not happening. At end of chromosome")
-                                        re_run = True
-                                        extra_seq +=5
-                                        print(poly_a_in_progress)
-                                        print("Re-run happening, Forward")
+                                        else:
+                                            re_run = True
+                                            extra_seq +=5
+                                            print(poly_a_in_progress)
+                                            print("Re-run happening, Forward")
                                 elif orientation == "Reverse":
                                     end = start + len(poly_a_in_progress)-1
                                     if abs((extracted_seq[1] - extra_seq) - (start)) <= 5 and (exterior_cutoff == 0 or exterior_cutoff == "0"):
@@ -319,3 +348,34 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                     sys.exit()
             print(final_polys)
     return final_polys, terminated_early
+
+def identify_endo_site(orientation,TSDs,ref):
+    print(orientation,TSDs)
+    if orientation == "Forward":
+        #extract coordinate for the start.
+        start = TSDs[0].replace(":","-").split("-")[1]
+        #print(start)
+        
+        locus_extract = f"{TSDs[0].replace(':','-').split('-')[0]}:{int(start)-2}-{int(start)+4}"
+        print(locus_extract)
+        
+    elif orientation == "Reverse":
+        end = start = TSDs[2].replace(":","-").split("-")[2]
+        locus_extract = f"{TSDs[0].replace(':','-').split('-')[0]}:{int(end)-4}-{int(end)+2}"
+        print(locus_extract)
+        #sys.exit()
+    
+    faidx_cmd = f"samtools faidx {ref} {locus_extract}"
+    proc = subprocess.Popen(faidx_cmd,shell=True,stdout=subprocess.PIPE)
+    faidx,err = proc.communicate()
+    faidx = faidx.decode()
+    print(faidx)
+    
+    if orientation == "Forward":
+        final_seq = revcomp(faidx.split("\n")[1])
+    else:
+        final_seq = faidx.split("\n")[1]
+        #print(final_seq)
+        #sys.exit()
+    print(final_seq)
+    return final_seq

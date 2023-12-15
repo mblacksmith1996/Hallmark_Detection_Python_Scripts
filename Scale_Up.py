@@ -5,7 +5,7 @@ import sys
 Data_Path = "/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/blat_results/"
 Hallmarks_Path = "/home/blacksmi/links/kidd-lab/matt-projects/Generic_Python_Scripts_Matt/Retrogene_Hallmarks_Detection.py"
 generic_scripts_path = os.path.dirname(__file__)
-Working_dir = "/home/blacksmi/links/kidd-lab/matt-projects/Stuff_For_Anthony/Identify_Hallmarks_From_Retrogenes/Scale_Up"
+Working_dir = "/home/blacksmi/links/kidd-lab/matt-projects/Stuff_For_Anthony/Identify_Hallmarks_From_Retrogenes/Scale_Up_2023_12_14"
 
 #created subdirectories 
 if not os.path.exists(Working_dir):
@@ -41,8 +41,8 @@ with open("Retrogene_CMDs.txt",'wt') as outfile:
     for canine in canines.keys():
         if not os.path.exists(canine):
             os.mkdir(canine)
-        with open(f"{Data_Path}/{canine}.blat_retrocopies.sorted.txt","rt") as infile:
-            with open(f"{canine}/{canine}.blat_retrocopies.sorted.txt",'wt') as out_loci:
+        with open(f"{Data_Path}/{canine}.blat_retrocopies_assembled.sorted.txt","rt") as infile:
+            with open(f"{canine}/{canine}.blat_retrocopies_assembled.sorted.txt",'wt') as out_loci:
                 for line in infile:
                     line = line.split()
                     line[1] = str(int(line[1])-1)
@@ -50,8 +50,8 @@ with open("Retrogene_CMDs.txt",'wt') as outfile:
                     out_loci.write(line)
                 
         #seperate the hits near gaps from those more distal
-        overlap_cmd = f"bedtools window -w {dist_from_gaps} -u -a {canine}/{canine}.blat_retrocopies.sorted.txt -b {canines[canine][1]} > {canine}/{canine}.blat_retrocopies_near_gaps.bed"
-        no_overlap_cmd = f"bedtools window -w {dist_from_gaps} -v -a {canine}/{canine}.blat_retrocopies.sorted.txt -b {canines[canine][1]} > {canine}/{canine}.blat_retrocopies_no_gaps.bed"
+        overlap_cmd = f"bedtools window -w {dist_from_gaps} -u -a {canine}/{canine}.blat_retrocopies_assembled.sorted.txt -b {canines[canine][1]} > {canine}/{canine}.blat_retrocopies_near_gaps.bed"
+        no_overlap_cmd = f"bedtools window -w {dist_from_gaps} -v -a {canine}/{canine}.blat_retrocopies_assembled.sorted.txt -b {canines[canine][1]} > {canine}/{canine}.blat_retrocopies_no_gaps.bed"
         subprocess.run(overlap_cmd,shell=True)
         subprocess.run(no_overlap_cmd,shell=True)
         
@@ -76,7 +76,7 @@ with open(f"Scale_Up_Retrogene_Driver.sh", 'wt') as file:
 #SBATCH --ntasks-per-node=1\n\
 #SBATCH --mem-per-cpu=8G\n\
 #SBATCH --time=6:00:00\n\
-#SBATCH --account=jmkidd0\n\
+#SBATCH --account=jmkidd1\n\
 #SBATCH --partition=standard\n\
 #SBATCH --output=logs/%x-%A_%a.out.log\n\
 #SBATCH --export=ALL\n\
