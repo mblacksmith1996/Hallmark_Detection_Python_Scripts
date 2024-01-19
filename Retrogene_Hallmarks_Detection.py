@@ -48,7 +48,7 @@ if __name__ == "__main__":
                     elif split_line[3] == "-":
                         orientation = "Reverse"
                     else:
-                        sys.exit()
+                        continue
                     if split_line[0] not in chr_dir.keys():
                         sys.exit("Chromosome of retrogene not found in fasta index")
                     else:
@@ -104,7 +104,11 @@ if __name__ == "__main__":
                         sys.exit()
                     print(final_poly)
                     
-                    
+                    if "N/A" not in TSDs:
+                        endo_site = Hallmarks.identify_endo_site(orientation,TSDs,options.ref)
+                        #sys.exit()
+                    else:
+                        endo_site = "N/A"
                     
                     #Report Results
                     split_line.append(poly_coords)
@@ -112,9 +116,9 @@ if __name__ == "__main__":
                     for item in TSDs:
                         split_line.append(str(item))
                     split_line.append(str(terminated))
+                    split_line.append(endo_site)
                     output_line = "\t".join(split_line) + "\n"
                     print(output_line,flush=True)
                     outfile.write(output_line)
                     outfile.flush()
         print(f"Number of loci within {dist_from_start} of the start or end of the chromosome is {end_of_chrs}.")
-        
