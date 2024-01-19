@@ -37,7 +37,7 @@ def process_file(input_file):
                     i+=1
     return(seq1,seq2)
 
-def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,interior_dist):
+def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,interior_dist,internal_TSD_upstream=False):
     """
     Detects if target site duplications are near within a predetermined distance of the locus of interest.
     Additionally, determines if flanks need to be extended (this occurs when the TSD is within the predetermined distance, but can be extended beyond the currently extracted sequence
@@ -61,29 +61,52 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,in
         #sys.exit("search_internal will be enabled in a future update. Please set search_internal == False")
          
         #to be added at a later date for non-reference retro-intersetions
-         for seq in [seq1,seq2]:
-            if abs(flank_dist - int(seq[1])) > dist and abs(flank_dist - int(seq[3])) > dist:
-                if seq == seq1:
-                    alignment_fail.append("seq1")
-                else:
-                    alignment_fail.append("seq2")
+        for seq in [seq1,seq2]:
+            print(flank_dist)
+            print(seq)
+            if internal_TSD_upstream == False:
+                if abs(flank_dist - int(seq[1])) > dist and abs(flank_dist - int(seq[3])) > dist:
+                    if seq == seq1:
+                        alignment_fail.append("seq1")
+                    else:
+                        alignment_fail.append("seq2")
+            else:
+                #print('here')
+                if abs(int(seq[1])-interior_dist) > dist and abs(int(seq[3])-interior_dist) > dist:
+                        if seq == seq1:
+                            alignment_fail.append("seq1")
+                        else:
+                            alignment_fail.append("seq2")
+                #sys.exit()
         if len(alignment_fail) >= 1:
             print(f"At least 1 alignment failed to be withing {dist}bp of the start/end of the inserted sequence")
             print(seq1,seq2)
             return False, False
         else:
-            if (int(seq1[1]) < 5) or (int(seq2[1]) < 5) or (flank_dist*2 - int(seq1[3]) < 5) or (flank_dist*2 - int(seq2[3]) < 5):
-                #print(length)
-                if flank_dist > length/2:
-                    False,False
-                    #sys.exit()
-                #print(seq1,seq2)
-                print("TSD may be longer than extracted flank. Doubling flank and trying again")
-                subprocess.run("rm water.txt",shell=True)
-                return True, False
-    else:
-        print(seq1,seq2)
-        print(dist,flank_dist)
+            print('here',internal_TSD_upstream)
+            if internal_TSD_upstream == False:
+                if (int(seq1[1]) <= 5) or (int(seq2[1]) <= 5):
+                    #print(length)
+                    if flank_dist > length/2:
+                        False,False
+                        #sys.exit()
+                    #print(seq1,seq2)
+                    print("TSD may be longer than extracted flank. Doubling flank and trying again")
+                    subprocess.run("rm water.txt",shell=True)
+                    return True, False
+            else:
+                if (flank_dist+interior_dist - int(seq1[3]) < 5) or (flank_dist+interior_dist - int(seq2[3]) < 5):
+                    #print(length)
+                    if flank_dist > length/2:
+                        False,False
+                        #sys.exit()
+                    #print(seq1,seq2)
+                    print("TSD may be longer than extracted flank. Doubling flank and trying again")
+                    subprocess.run("rm water.txt",shell=True)
+                    return True, False
+    #else:
+    #    print(seq1,seq2)
+    #    print(dist,flank_dist)
     else:
         #sys.exit()
         if (int(seq1[1]) <= 5) or (flank_dist+interior_dist - int(seq2[3]) < 5):
@@ -93,7 +116,7 @@ def investigate_TSD_validity(flank_dist,dist,seq1,seq2,length,search_internal,in
     return False, True
     
         
-def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_internal, chrom_length):
+def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_internal, chrom_length,internal_TSD_upstream=False,file_prefix=""):
     """
     Function to extract two sequences from a fasta file of interest and then perform a smith-waterman alignment using the EMBOSS module
     
@@ -111,30 +134,40 @@ def run_water(flank_dist, dist, coords, extraction_path,ref,orientation, search_
         seq1: (list) containing the first 13 characters of the a sequence, start position the aligned portion of the A sequence, the aligned nucleotides of the A sequence, the end position of the aligned A sequence, returns "" if no TSD detected
         seq2: (list) containing the first 13 characters of the b sequence, start position the aligned portion of the B sequence, the aligned nucleotides of the B sequence, the end position of the aligned B sequence, returns "" if no TSD detected
     """
+    if file_prefix != "" and file_prefix[-1] != "_" and file_prefix[-1] != "/":
+        file_prefix = file_prefix + "_"
     interior_dist = 0
     re_run = True
     while re_run:
         if search_internal == True:
+            interior_dist = 5
+            if internal_TSD_upstream == True:
+                extract_up = f"{coords[0]}:{max(coords[1]-interior_dist,1)}-{coords[1]+(flank_dist-1)}"
+                extract_down = f"{coords[0]}:{coords[2]-(interior_dist-1)}-{coords[2]+flank_dist}"
+            elif internal_TSD_upstream == False:
+                extract_up = f"{coords[0]}:{max(coords[1]-flank_dist,1)}-{coords[1]+(interior_dist -1)}"
+                extract_down = f"{coords[0]}:{coords[2]-(flank_dist-1)}-{coords[2]+interior_dist}"
             #sys.exit("search_internal will be enabled in a future update. Please set search_internal == False")
             #to be added at a later date for non-reference retro-intersetions
-            extract_up = f"{coords[0]}:{max(coords[1]-flank_dist,1)}-{coords[1]+(flank_dist -1)}"
-            extract_down = f"{coords[0]}:{coords[2]-(flank_dist-1)}-{coords[2]+flank_dist}"
+            
+            #extract_up = f"{coords[0]}:{max(coords[1]-flank_dist,1)}-{coords[1]+(flank_dist -1)}"
+            #extract_down = f"{coords[0]}:{coords[2]-(flank_dist-1)}-{coords[2]+flank_dist}"
         elif search_internal != True:
             dist = flank_dist
             extract_up = f"{coords[0]}:{max(coords[1]-dist,1)}-{coords[1]+(interior_dist-1)}"
             extract_down = f"{coords[0]}:{coords[2]-(interior_dist-1)}-{coords[2]+dist}"
 
-        command = f"samtools faidx {extraction_path} {extract_up} > upstream_and_5_start.fa ; samtools faidx {extraction_path} {extract_down} > downstream_and_3_end.fa"
+        command = f"samtools faidx {extraction_path} {extract_up} > {file_prefix}upstream_and_5_start.fa ; samtools faidx {extraction_path} {extract_down} > {file_prefix}downstream_and_3_end.fa"
         print(command)
         subprocess.run(command, shell=True)    
         gap_open = 10
         gap_extend = 10
         custom_matrix_path = os.path.dirname(__file__)
-        cmd = f"water upstream_and_5_start.fa downstream_and_3_end.fa -gapopen {gap_open} --gapextend {gap_extend} -datafile {custom_matrix_path}/Custom_Matrix -outfile water.txt"
+        cmd = f"water {file_prefix}upstream_and_5_start.fa {file_prefix}downstream_and_3_end.fa -gapopen {gap_open} --gapextend {gap_extend} -datafile {custom_matrix_path}/Custom_Matrix -outfile {file_prefix}water.txt"
         #print(cmd)
         subprocess.run(cmd, shell=True)
-        seq1,seq2 = process_file("water.txt")   
-        re_run, valid_TSD = investigate_TSD_validity(flank_dist,dist,seq1,seq2,coords[2]-coords[1]+1,search_internal,interior_dist)
+        seq1,seq2 = process_file(f"{file_prefix}water.txt")   
+        re_run, valid_TSD = investigate_TSD_validity(flank_dist,dist,seq1,seq2,coords[2]-coords[1]+1,search_internal,interior_dist,internal_TSD_upstream)
         
         #Check for edge cases
         if coords[1]-flank_dist <= 1:
@@ -163,13 +196,13 @@ def Refine_Coords(seq1,seq2,extract):
         print(seq1,seq2,extract)
         #print(int(seq1[0].split("-")[0])+int(seq1[3])+1,int(seq2[0].split("-")[0])-2+int(seq1[1]))
         start_after_TSD = int(seq1[0].split("-")[0])+int(seq1[3])
-        end_before_TSD = int(seq2[0].split("-")[0])-1+int(seq1[1])
+        end_before_TSD = int(seq2[0].split("-")[0])-1+int(seq1[1])-1
         RM_coords = [extract[0],start_after_TSD,end_before_TSD]
         TSDs = [extract[0],int(seq1[0].split("-")[0])+int(seq1[1])-1,int(seq1[0].split("-")[0])+int(seq1[3])-1,int(seq2[0].split("-")[0])+int(seq2[1])-1,int(seq2[0].split("-")[0])+int(seq2[3])-1]
         #print(TSDs)
     else:
         RM_coords = extract
-        TSDs = []    
+        TSDs = ["N/A","N/A","N/A","N/A","N/A"]    
     return(RM_coords,TSDs)
     
 def Repeat_Positions(repeat_masker_output, RM_position):
@@ -224,6 +257,7 @@ def Repeat_Positions(repeat_masker_output, RM_position):
         Element_Orientation = line[O]
 
         #create list containing the location of the sequence relative to the LINE-1
+        #ToDo Is the LINE-1 internal coordinates 0 based or 1 based within the bedfiles files.
         if repeat_masker_output.endswith(".bed") and Element_Orientation == "+":
             orientation = "Forward"
             Position_within_Repeat = [int(line[9].split(',')[0]),int(line[9].split(',')[1])]
@@ -292,7 +326,7 @@ def Repeat_Positions(repeat_masker_output, RM_position):
     exit_loop = False
     if len(L1s) == 0:
         print("Length of L1s list is 0. Terminating")
-        sys.exit()
+        return "N/A", "N/A", "N/A", "N/A", "N/A"
     while not exit_loop:
         #print('hi',len(L1s))
         merged_L1 = []
@@ -414,19 +448,27 @@ def Repeat_Positions(repeat_masker_output, RM_position):
                     if int(L1s[0][1]) - int(upper_bound) == 0:
                         transduction = ["N/A","N/A"]
                     else:
-                        transduction = [L1s[0][1],upper_bound]
+                        transduction = [L1s[0][1]+1,upper_bound]
                     #print(transduction)
                 else:
                     if int(lower_bound) - int(L1s[0][0]) == 0:
                         transduction = ["N/A","N/A"]
                     else:
-                        transduction = [lower_bound,L1s[0][0]]
+                        transduction = [lower_bound,L1s[0][0]-1]
                     #print(transduction)
-
-    print(L1s)
+    
+    print(f"Unfixed L1s is {L1s}")
+    final_L1s = []
+    for L1 in L1s:
+        revised_L1 = L1[0:3]
+        revised_L1.append(L1[3][0])
+        revised_L1.append(L1[3][1])
+        final_L1s.append(revised_L1)
+        
+    print(final_L1s)
     #if len(L1s) > 1:
     #sys.exit()
-    return L1_content, transduction, orientation, L1_pos, L1s
+    return L1_content, transduction, orientation, L1_pos, final_L1s
 def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orientation,internal,interior_dist,exterior_cutoff=0):
     """
     Creates the samtools faidx command which will extract sequence for poly(A) detection.
@@ -449,21 +491,18 @@ def extract_for_Poly_A(transduction,extraction_path,extracted_seq,extra_seq,orie
     if internal == True:
         #sys.exit("internal == True will be enabled in a future update. Please set internal == False")        
         if transduction[0] != "N/A":
-            if orientation == "Reverse":
-                #extract from end of TSD to the LINE-1
-                faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{transduction[0]}-{min(int(transduction[1])+extra_seq,extracted_seq[2])}"
-                start_in_contig = transduction[0]
-            elif orientation == "Forward":
-                faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{max(int(transduction[0])-extra_seq,extracted_seq[1])}-{int(transduction[1])}"
-                start_in_contig = max(int(transduction[0])-extra_seq,extracted_seq[1])
+            faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{transduction[0]}-{transduction[1]}"
+            start_in_contig = transduction[0]
         else:
+            faidx_cmd = "No Poly A"
+            start_in_contig = "No Poly A"
             #don't forget to filter to not go earlier than the start of the element.
-            if orientation == "Forward":
-                faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{max(extracted_seq[2]-extra_seq,extracted_seq[1])}-{extracted_seq[2]}"
-                start_in_contig = max(extracted_seq[2]-extra_seq,extracted_seq[1])
-            elif orientation == "Reverse":
-                faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{extracted_seq[1]}-{min(extracted_seq[1]+extra_seq,extracted_seq[2])}"
-                start_in_contig = extracted_seq[1]#to be added at a later date for non-reference retro-intersetions
+            #if orientation == "Forward":
+            #    faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{max(extracted_seq[2]-extra_seq,extracted_seq[1])}-{extracted_seq[2]}"
+            #    start_in_contig = max(extracted_seq[2]-extra_seq,extracted_seq[1])
+            #elif orientation == "Reverse":
+            #    faidx_cmd = f"samtools faidx {extraction_path} {extracted_seq[0]}:{extracted_seq[1]}-{min(extracted_seq[1]+extra_seq,extracted_seq[2])}"
+            #    start_in_contig = extracted_seq[1]#to be added at a later date for non-reference retro-intersetions
     elif internal == False:
         if exterior_cutoff == 0 and orientation == "Forward":
             exterior_cutoff = 100000000000
@@ -583,17 +622,18 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                                     #start = start - extra_seq
                                     end = start + len(poly_a_in_progress)-1
                                     if (extracted_seq[2] + extra_seq) - (end) < 5 and (exterior_cutoff == 0 or exterior_cutoff == "0"):
-                                        if extracted_seq[2] + extra_seq >= chrom_length:
+                                        if extracted_seq[2] + extra_seq >= chrom_length or internal == True:
                                             re_run = False
                                             print("Re-run not happening. At end of chromosome")
-                                        re_run = True
-                                        extra_seq +=5
-                                        print(poly_a_in_progress)
-                                        print("Re-run happening, Forward")
+                                        else:
+                                            re_run = True
+                                            extra_seq +=5
+                                            print(poly_a_in_progress)
+                                            print("Re-run happening, Forward")
                                 elif orientation == "Reverse":
                                     end = start + len(poly_a_in_progress)-1
                                     if abs((extracted_seq[1] - extra_seq) - (start)) <= 5 and (exterior_cutoff == 0 or exterior_cutoff == "0"):
-                                        if extracted_seq[1] - extra_seq > 1:
+                                        if extracted_seq[1] - extra_seq > 1 or internal != True:
                                             re_run = True
                                             extra_seq +=5
                                             print(poly_a_in_progress)
@@ -627,7 +667,9 @@ def Detect_Poly_As(transduction,extraction_path,extracted_seq,extra_seq,max_dist
                     continue
                     sys.exit()
             print(final_polys)
-    return final_polys, terminated_early
+        return final_polys, terminated_early
+    else:
+        return poly_a
     
 def transduction_detection(poly_a_list):
     if len(poly_a_list) < 2:
