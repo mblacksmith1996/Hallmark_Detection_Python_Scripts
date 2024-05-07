@@ -29,7 +29,33 @@ def revcomp(seq):
     seq = [complement(i) for i in seq]
     c = ''.join(seq)
     return c
-    
+def determine_orientation(split_line,ref,path_to_cDNA):
+    extract_cmds = f"samtools faidx {ref} {split_line[0]}:{int(split_line[1])}-{int(split_line[2])} > insertion_extract.txt && samtools faidx {path_to_cDNA} {split_line[4]} > parent_gene_extract.txt"
+    print(extract_cmds)
+    subprocess.run(extract_cmds,shell=True)
+    blat_cmd = f"blat -minIdentity=85 parent_gene_extract.txt insertion_extract.txt blat_output.psl"
+    print(blat_cmd)
+    #sys.exit()
+    subprocess.run(blat_cmd,shell=True)
+
+    with open("blat_output.psl",'rt') as blat_input:
+        match_count = 0
+        for line in blat_input.readlines()[5::]:
+            print(line)
+            match_count = max(int(line.split()[0]),match_count)
+            if int(line.split()[0]) >= match_count:
+                hit_orientation = line.split()[8]
+        if match_count == 0:
+            hit_orientation = "N/A"
+    print(hit_orientation)
+    #sys.exit()
+    if hit_orientation == "+":
+        hit_orientation = "Forward"
+    elif hit_orientation == "-":
+        hit_orientation = "Reverse"
+    else:
+        hit_orientation = "N/A"
+    return hit_orientation
 def process_file(input_file):
     """
     Extract the query, reference, and between sequences from a smith-waterman alignment
@@ -364,7 +390,7 @@ def identify_endo_site(orientation,TSDs,ref):
         locus_extract = f"{TSDs[0].replace(':','-').split('-')[0]}:{int(end)-4}-{int(end)+2}"
         print(locus_extract)
         #sys.exit()
-    
+    print(orientation)
     faidx_cmd = f"samtools faidx {ref} {locus_extract}"
     proc = subprocess.Popen(faidx_cmd,shell=True,stdout=subprocess.PIPE)
     faidx,err = proc.communicate()

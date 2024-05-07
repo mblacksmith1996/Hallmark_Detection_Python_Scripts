@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser = OptionParser(USAGE)
     parser.add_option("--locus_file",dest='retrogene_file',help='path to file containing loci of interest. 1-based closed is expected')
     parser.add_option("--reference",dest='ref',help='reference fasta file used for minimap2 alignment step')
+    parser.add_option("--cDNA_file",dest='cDNA',help='path to cDNA file for genes in this sample')
     (options, args)=parser.parse_args()
     
     proc = subprocess.Popen("module list",shell=True,stdout=subprocess.PIPE)
@@ -43,11 +44,16 @@ if __name__ == "__main__":
                 for line in input_file.readlines():
                     print(line.rstrip())
                     split_line = line.split()
-                    if split_line[3] == "+":
-                        orientation = "Forward"
-                    elif split_line[3] == "-":
-                        orientation = "Reverse"
-                    else:
+                    #if "NDUFB1" not in split_line:
+                    #    continue
+                    #determine orientation(split_line,options.ref,path_to_cDNA)
+                    orientation = Hallmarks.determine_orientation(split_line,options.ref,options.cDNA)
+                    if orientation == "N/A":
+                        if not os.path.exists("blat_fails.txt"):
+                            subprocess.run("touch blat_fails.txt",shell=True)
+                        subprocess.run(f"cat {line.rstrip} {dist} >> blat_fails.txt",shell=True)
+                        continue
+                    if split_line[3] != "+" and split_line[3] != "-":
                         continue
                     if split_line[0] not in chr_dir.keys():
                         sys.exit("Chromosome of retrogene not found in fasta index")

@@ -5,7 +5,7 @@ import sys
 Data_Path = "/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/blat_results/"
 Hallmarks_Path = "/home/blacksmi/links/kidd-lab/matt-projects/Generic_Python_Scripts_Matt/Retrogene_Hallmarks_Detection.py"
 generic_scripts_path = os.path.dirname(__file__)
-Working_dir = "/home/blacksmi/links/kidd-lab/matt-projects/Stuff_For_Anthony/Identify_Hallmarks_From_Retrogenes/Scale_Up_2023_12_14"
+Working_dir = "/home/blacksmi/links/kidd-lab/matt-projects/Stuff_For_Anthony/Identify_Hallmarks_From_Retrogenes/Scale_Up_2024_04_24"
 
 #created subdirectories 
 if not os.path.exists(Working_dir):
@@ -17,23 +17,32 @@ if not os.path.exists("logs"):
     
 #create commands
 canines = {"china":["/nfs/turbo/jmkidddata/genomes/China_UNSW_CanFamBas_1.2/ref/China_UNSW_CanFamBas_1.2.fa",\
-"/home/blacksmi/links/kidd-lab/genomes/China_UNSW_CanFamBas_1.2/ref/China_UNSW_CanFamBas_1.2.gaps.bed"], \
+"/home/blacksmi/links/kidd-lab/genomes/China_UNSW_CanFamBas_1.2/ref/China_UNSW_CanFamBas_1.2.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/china_cDNA/china_gene_orientation_all_cDNA.fa"], \
 "mischka":["/nfs/turbo/jmkidddata/genomes/UU_Cfam_GSD_1.0/ref/UU_Cfam_GSD_1.0.fa",\
-"/home/blacksmi/links/kidd-lab/genomes/UU_Cfam_GSD_1.0/ref/UU_Cfam_GSD_1.0.gaps.bed"], \
+"/home/blacksmi/links/kidd-lab/genomes/UU_Cfam_GSD_1.0/ref/UU_Cfam_GSD_1.0.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/mischka_cDNA/mischka_gene_orientation_all_cDNA.fa"], \
 "mCanLor1.2":["/nfs/turbo/jmkidddata/genomes/mCanLor1.2/ref/mCanLor1.2.fa",\
-"/home/blacksmi/links/kidd-lab/genomes/mCanLor1.2/ref/mCanLor1.2.gaps.bed"], \
-"nala":["/nfs/turbo/jmkidddata/genomes/Nala_ASM864105v3/ref/Nala_ASM864105v3.fa"\
-,"/home/blacksmi/links/kidd-lab/genomes/Nala_ASM864105v3/ref/Nala_ASM864105v3.gaps.bed"], \
-"sandy":["/nfs/turbo/jmkidddata/genomes/Sandy_ASM325472v2/ref/Sandy_ASM325472v2.fa"\
-,"/home/blacksmi/links/kidd-lab/genomes/Sandy_ASM325472v2/ref/Sandy_ASM325472v2.gaps.bed"], \
+"/home/blacksmi/links/kidd-lab/genomes/mCanLor1.2/ref/mCanLor1.2.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/mCanLor1.2_cDNA/mCanLor1.2_gene_orientation_all_cDNA.fa"], \
+"nala":["/nfs/turbo/jmkidddata/genomes/Nala_ASM864105v3/ref/Nala_ASM864105v3.fa", \
+"/home/blacksmi/links/kidd-lab/genomes/Nala_ASM864105v3/ref/Nala_ASM864105v3.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/nala_cDNA/nala_gene_orientation_all_cDNA.fa"], \
+"sandy":["/nfs/turbo/jmkidddata/genomes/Sandy_ASM325472v2/ref/Sandy_ASM325472v2.fa", \
+"/home/blacksmi/links/kidd-lab/genomes/Sandy_ASM325472v2/ref/Sandy_ASM325472v2.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/sandy_cDNA/sandy_gene_orientation_all_cDNA.fa"], \
 "tasha":["/nfs/turbo/jmkidddata/genomes/Dog10K_Boxer_Tasha_1.0.KP081776.1/ref/Dog10K_Boxer_Tasha_1.0.KP081776.1.fa",\
-"/home/blacksmi/links/kidd-lab/genomes/Dog10K_Boxer_Tasha_1.0.KP081776.1/ref/Dog10K_Boxer_Tasha_1.0.KP081776.1.gaps.bed"], \
+"/home/blacksmi/links/kidd-lab/genomes/Dog10K_Boxer_Tasha_1.0.KP081776.1/ref/Dog10K_Boxer_Tasha_1.0.KP081776.1.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/tasha_cDNA/tasha_gene_orientation_all_cDNA.fa"], \
 "wags":["/nfs/turbo/jmkidddata/genomes/Wags_PRJNA512874/ref/Wags_PRJNA512874.fa",\
-"/home/blacksmi/links/kidd-lab/genomes/Wags_PRJNA512874/ref/Wags_PRJNA512874.gaps.bed"], \
+"/home/blacksmi/links/kidd-lab/genomes/Wags_PRJNA512874/ref/Wags_PRJNA512874.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/wags_cDNA/wags_gene_orientation_all_cDNA.fa"], \
 "yella":["/nfs/turbo/jmkidddata/genomes/Yella_PRJNA610232/ref/Yella_PRJNA610232.fa",\
-"/home/blacksmi/links/kidd-lab/genomes/Yella_PRJNA610232/ref/Yella_PRJNA610232.gaps.bed"], \
+"/home/blacksmi/links/kidd-lab/genomes/Yella_PRJNA610232/ref/Yella_PRJNA610232.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/yella_cDNA/yella_gene_orientation_all_cDNA.fa"], \
 "zoey":["/nfs/turbo/jmkidddata/genomes/zoey/assemblies/2.3/ref/zoey.2.3.fa",\
-"/home/blacksmi/links/kidd-lab/genomes/zoey/assemblies/2.3/gaps/zoey.2.3.gaps.bed"]}
+"/home/blacksmi/links/kidd-lab/genomes/zoey/assemblies/2.3/gaps/zoey.2.3.gaps.bed", \
+"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/zoey_cDNA/zoey_gene_orientation_all_cDNA.fa"]}
 
 dist_from_gaps = 100
 total = len(canines.keys())
@@ -63,7 +72,7 @@ with open("Retrogene_CMDs.txt",'wt') as outfile:
                     line = "\t".join(line)+"\n"
                     out_loci.write(line)
 
-        cmd = f"cd {canine} && python {Hallmarks_Path} --locus_file {canine}.blat_retrocopies_no_gaps.txt --reference {canines[canine][0]}\n"
+        cmd = f"cd {canine} && python {Hallmarks_Path} --locus_file {canine}.blat_retrocopies_no_gaps.txt --reference {canines[canine][0]} --cDNA_file {canines[canine][2]}\n"
         outfile.write(cmd)
 
 #create driver script
