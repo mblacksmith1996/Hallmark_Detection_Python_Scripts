@@ -101,7 +101,7 @@ def pull_record(file_contents):
         for key in locus_dict.keys():
             locus_dict[key]["gene_name"] = gene_list[0]
             locus_dict[key]["Expected_Length"] = avg_length
-                #print(length)#TODO handle a filter for length.
+            
     #print(locus_dict)
     
     return locus_dict, polymorphic
@@ -116,32 +116,39 @@ def process_age(age_out,comp):
             age_out[i+1] = age_out[i+1].replace("]","").replace("[","").replace(","," ")
             age_out[i+2] = age_out[i+2].replace("]","").replace("[","").replace(","," ")
             
-            comp["Refined_Filled_start"] = int(age_out[i+1].split()[4])+comp['filled_start']-comp['flank_dist'] #TODO may have an off by 1 error. Check.
-            comp["Refined_Filled_end"] = int(age_out[i+1].split()[7])+comp['filled_start']-comp['flank_dist']
+            comp["Refined_Filled_start"] = int(age_out[i+1].split()[4])+comp['filled_start']-comp['flank_dist']
+            comp["Refined_Filled_end"] = int(age_out[i+1].split()[7])+comp['filled_start']-comp['flank_dist']-2
             comp["Refined_empty_start"] = int(age_out[i+2].split()[4])+comp['empty_start']-comp['flank_dist']
             comp["Refined_empty_end"] = int(age_out[i+2].split()[7])+comp['empty_start']-comp['flank_dist']
+
         elif age_out[i].startswith("Identity at breakpoints:"):
             #print(age_out[i+1],age_out[i+2])
             age_out[i+1] = age_out[i+1].replace("]","").replace("[","")
             age_out[i+2] = age_out[i+2].replace("]","").replace("[","")
             if age_out[i+1].split()[3] != "0":
                 #handle
-                comp['left_TSD_filled'] = [str(int(age_out[i+1].split()[5].split(",")[0])+comp['filled_start']-comp['flank_dist']),str(int(age_out[i+1].split()[5].split(",")[1])+comp['filled_start']-comp['flank_dist'])]
-                comp['right_TSD_filled'] = [str(int(age_out[i+1].split()[7].split(",")[0])+comp['filled_start']-comp['flank_dist']),str(int(age_out[i+1].split()[7].split(",")[1])+comp['filled_start']-comp['flank_dist'])]
+                comp['left_TSD_filled'] = [str(int(age_out[i+1].split()[5].split(",")[0])+comp['filled_start']-comp['flank_dist']-1),str(int(age_out[i+1].split()[5].split(",")[1])+comp['filled_start']-comp['flank_dist']-1)]
+                comp['right_TSD_filled'] = [str(int(age_out[i+1].split()[7].split(",")[0])+comp['filled_start']-comp['flank_dist']-1),str(int(age_out[i+1].split()[7].split(",")[1])+comp['filled_start']-comp['flank_dist']-1)]
             else:
                 #no TSD
                 comp['left_TSD_filled'] = ["N/A","N/A"]
                 comp['right_TSD_filled'] = ["N/A","N/A"]
             if age_out[i+2].split()[3] != "0":
                 #handle
-                comp['left_TSD_empty'] = [int(age_out[i+2].split()[5].split(",")[0])+comp['empty_start']-comp['flank_dist'],int(age_out[i+2].split()[5].split(",")[1])+comp['empty_start']-comp['flank_dist']]
-                comp['right_TSD_empty'] = [int(age_out[i+2].split()[7].split(",")[0])+comp['empty_start']-comp['flank_dist'],int(age_out[i+2].split()[7].split(",")[1])+comp['empty_start']-comp['flank_dist']]
+                comp['left_TSD_empty'] = [int(age_out[i+2].split()[5].split(",")[0])+comp['empty_start']-comp['flank_dist']-1,int(age_out[i+2].split()[5].split(",")[1])+comp['empty_start']-comp['flank_dist']-1]
+                comp['right_TSD_empty'] = [int(age_out[i+2].split()[7].split(",")[0])+comp['empty_start']-comp['flank_dist']-1,int(age_out[i+2].split()[7].split(",")[1])+comp['empty_start']-comp['flank_dist']-1]
             else:
                 #no TSD
                 comp['left_TSD_empty'] = ["N/A","N/A"]
                 comp['right_TSD_empty'] = ["N/A","N/A"]
+                
+            #print(comp)
+            #print(comp["Refined_Filled_start"],comp["Refined_Filled_end"])
+            #sys.exit()
         else:
             continue
+            
+
 def process_blat(comp, infile):
     with open(infile,'rt') as blat_input:
         match_count = 0
@@ -151,7 +158,7 @@ def process_blat(comp, infile):
                 comp["hit_orientation"] = line.split()[8]
     subprocess.run(f"rm {infile}",shell=True)
     return match_count
-def run_age(comp):#, gene_dict): #TODO input this as a file
+def run_age(comp):#, gene_dict):
     canines = {"china":"/nfs/turbo/jmkidddata/genomes/China_UNSW_CanFamBas_1.2/ref/China_UNSW_CanFamBas_1.2.fa", \
     "mischka":"/nfs/turbo/jmkidddata/genomes/UU_Cfam_GSD_1.0/ref/UU_Cfam_GSD_1.0.fa", \
     "mcanlor":"/nfs/turbo/jmkidddata/genomes/mCanLor1.2/ref/mCanLor1.2.fa", \
@@ -167,7 +174,7 @@ def run_age(comp):#, gene_dict): #TODO input this as a file
     "zoey":"/nfs/turbo/jmkiddscr/anthony-projects/retrocopy_analysis/zoey_cDNA/zoey_gene_orientation_all_cDNA.fa"}
     comp['flank_dist'] = 5000
     #gtf_genome = "mischka"
-    if abs(comp['filled_start']-comp['filled_end']) > 20000 or abs(comp['empty_start']-comp['empty_end']) > 20000:
+    if abs(comp['filled_start']-comp['filled_end']) >= 20000 or abs(comp['empty_start']-comp['empty_end']) >= 20000:
         comp["hit_orientation"] = "Locus_Too_Long"
         comp["empty_fill"] = "N/A"
         comp["filled_fill"] = "N/A"
@@ -182,7 +189,7 @@ def run_age(comp):#, gene_dict): #TODO input this as a file
         #print(comp)
         return comp
     
-    extract_cmd = f"samtools faidx {canines[comp['filled_sample']]} {comp['filled_chrom']}:{int(comp['filled_start'])+1-comp['flank_dist']}-{int(comp['filled_end'])+comp['flank_dist']} > filled_coords.fa && samtools faidx {canines[comp['empty_sample']]} {comp['empty_chrom']}:{int(comp['empty_start'])+1-comp['flank_dist']}-{int(comp['empty_end'])+comp['flank_dist']} > empty_coords.fa"
+    extract_cmd = f"samtools faidx {canines[comp['filled_sample']]} {comp['filled_chrom']}:{int(comp['filled_start'])-comp['flank_dist']}-{int(comp['filled_end'])+comp['flank_dist']} > filled_coords.fa && samtools faidx {canines[comp['empty_sample']]} {comp['empty_chrom']}:{int(comp['empty_start'])-comp['flank_dist']}-{int(comp['empty_end'])+comp['flank_dist']} > empty_coords.fa"
     subprocess.run(extract_cmd,shell=True)
     print(extract_cmd)
 
@@ -196,8 +203,8 @@ def run_age(comp):#, gene_dict): #TODO input this as a file
     print(comp)
 
     #validate the insertion
-    filled_length = comp["Refined_Filled_end"] - comp["Refined_Filled_start"]
-    empty_length = abs(comp["Refined_empty_end"] - comp["Refined_empty_start"])
+    filled_length = comp["Refined_Filled_end"] - comp["Refined_Filled_start"]+1
+    empty_length = abs(comp["Refined_empty_end"] - comp["Refined_empty_start"])+1
     
     if filled_length > empty_length:
         #length_dif = abs(mCanlor_length-comp["Expected_Length"])
@@ -271,7 +278,7 @@ def run_age(comp):#, gene_dict): #TODO input this as a file
     elif match == True and longer == comp['filled_sample']:
         comp["empty_fill"] = False
         comp["filled_fill"] = True 
-    elif match == False: #TODO size cutoff?
+    elif match == False:
         comp["empty_fill"] = False
         comp["filled_fill"] = False 
         
@@ -290,14 +297,24 @@ def run_age(comp):#, gene_dict): #TODO input this as a file
             comp["Cleavage_Site"] = "N/A"
             cmd = ""
         else:
-            cmd = f"samtools faidx {canines[longer]} {comp['filled_chrom']}:{int(comp['left_TSD_filled'][0])-2}-{int(comp['left_TSD_filled'][0])+4}"
+            if comp["hit_orientation"] == "+":
+                cmd = f"samtools faidx {canines[longer]} {comp['filled_chrom']}:{int(comp['left_TSD_filled'][0])-2}-{int(comp['left_TSD_filled'][0])+4}"
+            elif comp["hit_orientation"] == "-":
+                cmd = f"samtools faidx {canines[longer]} {comp['filled_chrom']}:{int(comp['right_TSD_filled'][1])-4}-{int(comp['right_TSD_filled'][1])+2}"
+            else:
+                sys.exit("here")
             subprocess.run(cmd,shell=True)
     elif comp['empty_fill'] == True:
         if comp["left_TSD_empty"][0] == "N/A":
             comp["Cleavage_Site"] = "N/A"
             cmd = ""
         else:
-            cmd = f"samtools faidx {canines[longer]} {comp['empty_chrom']}:{int(comp['left_TSD_empty'][0])-2}-{int(comp['left_TSD_empty'][0])+4}"
+            if hit_orientation == "+":
+                cmd = f"samtools faidx {canines[longer]} {comp['empty_chrom']}:{int(comp['left_TSD_empty'][0])-2}-{int(comp['left_TSD_empty'][0])+4}"
+            elif hit_orientation == "-":
+                cmd = f"samtools faidx {canines[longer]} {comp['empty_chrom']}:{int(comp['right_TSD_empty'][1])-4}-{int(comp['right_TSD_empty'][1])+2}"
+            else:
+                sys.exit("here")
             subprocess.run(cmd,shell=True)
     else:
         sys.exit("Invalid TSD calculation")
@@ -368,7 +385,9 @@ def process_locus(locus,final_outfile):#, gene_dict):
     while permanent_empty == "":
         comp_dict = create_comparison_dictionary(locus[filled_genome[0]],locus[empty_genome[0]])
         print(comp_dict)
-        #if comp_dict["gene_name"] == "MARCKSL1":
+        #if comp_dict["gene_name"] != "TMEM123":
+        #    return ""
+        #if comp_dict["filled_sample"] != "sandy":
         #    return ""
         #if comp_dict["gene_name"] == "PSMA1":
         #    return ""
@@ -379,9 +398,8 @@ def process_locus(locus,final_outfile):#, gene_dict):
         comp = run_age(comp_dict)#,gene_dict)
         
         print(comp)
-        
+        #sys.exit()
         resolved = {}
-        #TODO START HERE NEED TO HANDLE THE FILTERING
         if comp["empty_fill"] == True:
             resolved[comp["empty_sample"]] = True
             extract = "\t".join([comp["filled_chrom"],str(comp["Refined_Filled_start"]),str(comp["Refined_Filled_end"]),'False_Negative',comp['gene_name'],comp['filled_sample'],comp['Cleavage_Site']])+"\n"
@@ -430,6 +448,7 @@ def process_locus(locus,final_outfile):#, gene_dict):
             #sys.exit()
     
     if len(filled_genome) == 1:
+        final_outfile.flush()
         return resolved
     else:
         for i in range(len(filled_genome)-1):
@@ -450,6 +469,8 @@ def process_locus(locus,final_outfile):#, gene_dict):
                 
                 
             print(resolved)
+    #sys.exit()
+    final_outfile.flush()
     #sys.exit()
     return resolved
     #sys.exit()
